@@ -556,19 +556,6 @@ textarea.field-input{resize:vertical;min-height:70px}
         <div class="form-card">
           <div id="createPOMsg"></div>
 
-          <!-- Vendor -->
-          <div style="margin-bottom:20px">
-            <label class="field-label">Vendor Name *</label>
-            <div style="position:relative">
-              <input type="text" id="poVendorName" class="field-input" placeholder="Search vendor name or ID…"
-                autocomplete="off" oninput="onVendorInput(this.value)" onblur="closeVendorDropdown()" onkeydown="onVendorKeydown(event)"/>
-              <div id="vendorDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:200;max-height:280px;overflow-y:auto;margin-top:4px"></div>
-            </div>
-            <div id="vendorMeta" style="font-size:12px;color:var(--faint);margin-top:5px;display:none"></div>
-          </div>
-
-          <div style="height:1px;background:var(--border);margin-bottom:20px"></div>
-
           <!-- Item picker -->
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
             <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);flex:1">
@@ -586,7 +573,7 @@ textarea.field-input{resize:vertical;min-height:70px}
               <thead class="tbl-head">
                 <tr>
                   <th style="width:36px"></th>
-                  <th>Item</th><th>PR</th><th>Requester</th><th>Dept</th><th>Qty Approved</th><th>UOM</th><th style="width:130px">Unit Price (Rp) *</th><th style="width:110px">Qty to Order *</th><th style="width:130px;text-align:right">Line Total</th>
+                  <th>Item</th><th>PR</th><th>Requester</th><th>Dept</th><th>Qty Approved</th><th>UOM</th><th style="width:110px">Qty to Order *</th>
                 </tr>
               </thead>
               <tbody id="createPOItemsBody"></tbody>
@@ -594,42 +581,17 @@ textarea.field-input{resize:vertical;min-height:70px}
           </div>
 
           <div style="display:flex;gap:10px;align-items:center">
-            <button class="btn-primary" onclick="submitCreatePO()">Create PO →</button>
-            <span style="font-size:13px;color:var(--dim)">Total: <span class="serif-num" id="createPOTotal">Rp 0</span></span>
+            <button class="btn-primary" onclick="openCPOBulkModal()">Create PO →</button>
+            <span style="font-size:13px;color:var(--dim)"><span id="createPOSelectedCount">0</span> item(s) selected</span>
           </div>
         </div>
 
         <div>
           <div class="summary-card">
-            <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:12px">Summary</div>
-            <div class="summary-row">
-              <span>Selected items</span>
-              <span style="color:var(--text);font-weight:600" id="createPOSelectedCount">0</span>
-            </div>
-            <div class="summary-row">
-              <span>Subtotal</span>
-              <span class="serif-num" id="createPOSubtotal">Rp 0</span>
-            </div>
-            <div class="summary-row" style="padding:10px 0">
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
-                <input type="checkbox" id="cpoVAT" onchange="updateCreatePOSummary()" style="width:14px;height:14px;accent-color:var(--accent)">
-                VAT 11%
-              </label>
-              <span class="serif-num" id="createPOVATAmount" style="color:var(--faint);font-size:13px">—</span>
-            </div>
-            <div class="summary-row" style="padding:10px 0;align-items:center">
-              <select id="cpoPPHType" onchange="updateCreatePOSummary()" class="field-input field-input-sm" style="flex:1;margin-right:8px">
-                <option value="">PPH — tidak ada</option>
-                <option value="pph23">PPH 23 · Jasa Badan (2%)</option>
-                <option value="pph15">PPH 15 · Jasa Tongkang (1,2%)</option>
-                <option value="pph22_solar">PPH 22 · Solar (0,3%)</option>
-                <option value="pph22_impor">PPH 22 · Impor (2,5%)</option>
-              </select>
-              <span class="serif-num" id="createPOPPHAmount" style="color:var(--faint);font-size:13px;white-space:nowrap">—</span>
-            </div>
-            <div class="summary-row" style="border-bottom:none;border-top:1px solid var(--border);padding-top:10px;margin-top:4px">
-              <span>Total amount</span>
-              <span class="summary-total" id="createPOTotalCard">Rp 0</span>
+            <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:12px">How it works</div>
+            <div style="font-size:13px;color:var(--dim);line-height:1.7">
+              <div style="margin-bottom:8px"><span style="font-weight:600;color:var(--text)">Step 1 —</span> Check the items you want to order and set quantities.</div>
+              <div><span style="font-weight:600;color:var(--text)">Step 2 —</span> Click "Create PO →" to enter unit prices, select a vendor, and apply tax.</div>
             </div>
           </div>
         </div>
@@ -763,6 +725,85 @@ textarea.field-input{resize:vertical;min-height:70px}
     <div style="display:flex;gap:10px;justify-content:flex-end">
       <button class="btn-primary" onclick="confirmCreatePO()">Create PO</button>
       <button class="btn-outline" onclick="closePoModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ CREATE PO STEP 2 MODAL ═══════════ -->
+<div class="modal-overlay" id="cpoBulkModal">
+  <div class="modal" style="width:860px;max-width:96vw">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px">
+      <div>
+        <div class="modal-title" style="margin-bottom:4px">Create Purchase Order</div>
+        <div style="font-size:13px;color:var(--faint)">Step 2 — Enter unit prices and select a vendor</div>
+      </div>
+      <button onclick="closeCPOBulkModal()" style="background:none;border:none;cursor:pointer;color:var(--faint);font-size:22px;line-height:1;padding:0;margin-left:16px">×</button>
+    </div>
+    <div id="cpoBulkModalMsg"></div>
+
+    <!-- Vendor -->
+    <div style="margin-bottom:20px">
+      <label class="field-label">Vendor Name *</label>
+      <div style="position:relative">
+        <input type="text" id="poVendorName" class="field-input" placeholder="Search vendor name or ID…"
+          autocomplete="off" oninput="onVendorInput(this.value)" onblur="closeVendorDropdown()" onkeydown="onVendorKeydown(event)"/>
+        <div id="vendorDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:600;max-height:280px;overflow-y:auto;margin-top:4px"></div>
+      </div>
+      <div id="vendorMeta" style="font-size:12px;color:var(--faint);margin-top:5px;display:none"></div>
+    </div>
+
+    <div style="height:1px;background:var(--border);margin-bottom:20px"></div>
+
+    <!-- Selected items table -->
+    <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:10px">Selected Items</div>
+    <div class="surface" style="margin-bottom:20px">
+      <table>
+        <thead class="tbl-head">
+          <tr>
+            <th>Item</th><th>PR</th><th>Dept</th><th>Qty</th><th>UOM</th>
+            <th style="width:150px">Unit Price (Rp) *</th>
+            <th style="width:140px;text-align:right">Line Total</th>
+          </tr>
+        </thead>
+        <tbody id="cpoBulkItemsBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Tax + Summary row -->
+    <div style="display:flex;gap:20px;align-items:flex-start;justify-content:flex-end;margin-bottom:24px">
+      <div class="summary-card" style="min-width:300px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:12px">Summary</div>
+        <div class="summary-row">
+          <span>Subtotal</span>
+          <span class="serif-num" id="cpoBulkSubtotal">Rp 0</span>
+        </div>
+        <div class="summary-row" style="padding:10px 0">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+            <input type="checkbox" id="cpoBulkVAT" onchange="updateCPOBulkSummary()" style="width:14px;height:14px;accent-color:var(--accent)">
+            VAT 11%
+          </label>
+          <span class="serif-num" id="cpoBulkVATAmount" style="color:var(--faint);font-size:13px">—</span>
+        </div>
+        <div class="summary-row" style="padding:10px 0;align-items:center">
+          <select id="cpoBulkPPHType" onchange="updateCPOBulkSummary()" class="field-input field-input-sm" style="flex:1;margin-right:8px">
+            <option value="">PPH — tidak ada</option>
+            <option value="pph23">PPH 23 · Jasa Badan (2%)</option>
+            <option value="pph15">PPH 15 · Jasa Tongkang (1,2%)</option>
+            <option value="pph22_solar">PPH 22 · Solar (0,3%)</option>
+            <option value="pph22_impor">PPH 22 · Impor (2,5%)</option>
+          </select>
+          <span class="serif-num" id="cpoBulkPPHAmount" style="color:var(--faint);font-size:13px;white-space:nowrap">—</span>
+        </div>
+        <div class="summary-row" style="border-bottom:none;border-top:1px solid var(--border);padding-top:10px;margin-top:4px">
+          <span>Total amount</span>
+          <span class="summary-total" id="cpoBulkTotal">Rp 0</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn-outline" onclick="closeCPOBulkModal()">← Back</button>
+      <button class="btn-primary" onclick="submitCPOBulk()">Confirm & Create PO →</button>
     </div>
   </div>
 </div>
@@ -1331,21 +1372,14 @@ async function loadCreatePO() {
   if (cpoInp) cpoInp.value = '';
   const cpoClear = document.getElementById('createPOSearchClear');
   if (cpoClear) cpoClear.style.display = 'none';
-  document.getElementById('poVendorName').value = '';
-  document.getElementById('vendorMeta').style.display = 'none';
-  _vendorSelected = null;
   document.getElementById('createPOMsg').innerHTML = '';
-  const vatCb  = document.getElementById('cpoVAT');
-  const pphSel = document.getElementById('cpoPPHType');
-  if (vatCb)  vatCb.checked = false;
-  if (pphSel) pphSel.value  = '';
   updateCreatePOSummary();
 
   const body = document.getElementById('createPOItemsBody');
-  body.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--faint);padding:30px">Loading…</td></tr>`;
+  body.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--faint);padding:30px">Loading…</td></tr>`;
 
   const { ok, data, error } = await apiFetch('/api/pr-items/approved');
-  if (!ok) { body.innerHTML = `<tr><td colspan="10"><div class="msg msg-error">${error}</div></td></tr>`; return; }
+  if (!ok) { body.innerHTML = `<tr><td colspan="8"><div class="msg msg-error">${error}</div></td></tr>`; return; }
 
   createPOItems = data;
   renderCreatePOItems();
@@ -1383,8 +1417,8 @@ function renderCreatePOItems() {
 
   if (!items.length) {
     body.innerHTML = createPOSearchTerm
-      ? `<tr><td colspan="10" style="text-align:center;color:var(--faint);padding:40px;font-size:13px">No items match "<strong>${escHtml(createPOSearchTerm)}</strong>"</td></tr>`
-      : `<tr><td colspan="10" style="text-align:center;color:var(--faint);padding:40px">No approved items awaiting a PO.</td></tr>`;
+      ? `<tr><td colspan="8" style="text-align:center;color:var(--faint);padding:40px;font-size:13px">No items match "<strong>${escHtml(createPOSearchTerm)}</strong>"</td></tr>`
+      : `<tr><td colspan="8" style="text-align:center;color:var(--faint);padding:40px">No approved items awaiting a PO.</td></tr>`;
     return;
   }
 
@@ -1407,91 +1441,120 @@ function renderCreatePOItems() {
       <td style="font-size:13px">${remaining} <span style="font-size:10px;color:var(--faint)">(approved: ${qtyApproved})</span></td>
       <td class="text-dim">${it.uom}</td>
       <td>
-        <input type="number" id="cpo-price-${it.pr_item_id}" min="0" step="any" placeholder="0.00"
-          class="field-input field-input-sm" style="width:120px" disabled
-          oninput="updateCreatePOSummary()"/>
-      </td>
-      <td>
         <input type="number" id="cpo-qty-${it.pr_item_id}" min="0.01" step="any" value="${remaining}"
           class="field-input field-input-sm" style="width:90px" disabled
           oninput="updateCreatePOSummary()"/>
       </td>
-      <td style="text-align:right;font-family:var(--mono);font-size:13px;color:var(--faint)" id="cpo-linetotal-${it.pr_item_id}">—</td>
     </tr>`;
   }).join('');
 }
 
 function toggleCPOItem(pr_item_id) {
-  const cb    = document.getElementById(`cpo-check-${pr_item_id}`);
-  const price = document.getElementById(`cpo-price-${pr_item_id}`);
-  const qty   = document.getElementById(`cpo-qty-${pr_item_id}`);
+  const cb  = document.getElementById(`cpo-check-${pr_item_id}`);
+  const qty = document.getElementById(`cpo-qty-${pr_item_id}`);
   if (cb.checked) {
     createPOSelected.add(pr_item_id);
-    price.disabled = false;
-    qty.disabled   = false;
-    price.focus();
+    qty.disabled = false;
   } else {
     createPOSelected.delete(pr_item_id);
-    price.disabled = true;
-    qty.disabled   = true;
+    qty.disabled = true;
   }
   updateCreatePOSummary();
 }
 
 function updateCreatePOSummary() {
-  let subtotal = 0;
-  // Update each visible line total
-  createPOItems.forEach(it => {
-    const el = document.getElementById(`cpo-linetotal-${it.pr_item_id}`);
-    if (!el) return;
-    if (createPOSelected.has(it.pr_item_id)) {
-      const price = parseFloat(document.getElementById(`cpo-price-${it.pr_item_id}`)?.value) || 0;
-      const qty   = parseFloat(document.getElementById(`cpo-qty-${it.pr_item_id}`)?.value)   || 0;
-      const lineTotal = price * qty;
-      subtotal += lineTotal;
-      el.textContent = lineTotal > 0 ? fmtMoney(lineTotal) : '—';
-      el.style.color = lineTotal > 0 ? 'var(--text)' : 'var(--faint)';
-    } else {
-      el.textContent = '—';
-      el.style.color = 'var(--faint)';
-    }
-  });
-
-  const PPH_RATES = { pph23: 0.02, pph15: 0.012, pph22_solar: 0.003, pph22_impor: 0.025 };
-  const includeVAT = document.getElementById('cpoVAT')?.checked || false;
-  const pphType    = document.getElementById('cpoPPHType')?.value || '';
-  const vatAmount  = includeVAT ? subtotal * 0.11 : 0;
-  const pphRate    = PPH_RATES[pphType] || 0;
-  const pphAmount  = subtotal * pphRate;
-  const total      = subtotal + vatAmount - pphAmount;
-
-  document.getElementById('createPOSubtotal').textContent   = fmtMoney(subtotal);
-  document.getElementById('createPOVATAmount').textContent  = includeVAT ? `+ ${fmtMoney(vatAmount)}` : '—';
-  document.getElementById('createPOPPHAmount').textContent  = pphType    ? `− ${fmtMoney(pphAmount)}` : '—';
-  document.getElementById('createPOTotal').textContent      = fmtMoney(total);
-  document.getElementById('createPOTotalCard').textContent  = fmtMoney(total);
   document.getElementById('createPOSelectedCount').textContent = createPOSelected.size;
 }
 
-async function submitCreatePO() {
-  const msgEl      = document.getElementById('createPOMsg');
+function openCPOBulkModal() {
+  const msgEl = document.getElementById('createPOMsg');
+  if (!createPOSelected.size) {
+    msgEl.innerHTML = '<div class="msg msg-error">Select at least one item.</div>';
+    return;
+  }
+  msgEl.innerHTML = '';
+  // Reset modal state
+  document.getElementById('cpoBulkModalMsg').innerHTML = '';
+  document.getElementById('poVendorName').value = '';
+  document.getElementById('vendorMeta').style.display = 'none';
+  _vendorSelected = null;
+  document.getElementById('cpoBulkVAT').checked = false;
+  document.getElementById('cpoBulkPPHType').value = '';
+  // Render selected items into modal table
+  const body = document.getElementById('cpoBulkItemsBody');
+  const selectedItems = createPOItems.filter(it => createPOSelected.has(it.pr_item_id));
+  body.innerHTML = selectedItems.map(it => {
+    const qty = parseFloat(document.getElementById(`cpo-qty-${it.pr_item_id}`)?.value) || (it.qty_approved ?? it.qty_requested);
+    return `<tr class="tbl-row">
+      <td>
+        <div style="font-weight:500">${escHtml(it.name_en)}</div>
+        ${it.name_cn ? `<div style="font-size:11px;color:var(--faint)">${escHtml(it.name_cn)}</div>` : ''}
+      </td>
+      <td class="mono" style="font-size:12px">${escHtml(it.pr_number)}</td>
+      <td class="text-dim">${escHtml(it.department)}</td>
+      <td style="font-size:13px">${qty}</td>
+      <td class="text-dim">${escHtml(it.uom)}</td>
+      <td>
+        <input type="number" id="cbulk-price-${it.pr_item_id}" min="0" step="any" placeholder="0.00"
+          class="field-input field-input-sm" style="width:140px"
+          oninput="updateCPOBulkSummary()"/>
+      </td>
+      <td style="text-align:right;font-family:var(--mono);font-size:13px;color:var(--faint)" id="cbulk-linetotal-${it.pr_item_id}">—</td>
+    </tr>`;
+  }).join('');
+  updateCPOBulkSummary();
+  document.getElementById('cpoBulkModal').classList.add('open');
+}
+
+function closeCPOBulkModal() {
+  document.getElementById('cpoBulkModal').classList.remove('open');
+}
+
+function updateCPOBulkSummary() {
+  const selectedItems = createPOItems.filter(it => createPOSelected.has(it.pr_item_id));
+  let subtotal = 0;
+  selectedItems.forEach(it => {
+    const price = parseFloat(document.getElementById(`cbulk-price-${it.pr_item_id}`)?.value) || 0;
+    const qty   = parseFloat(document.getElementById(`cpo-qty-${it.pr_item_id}`)?.value)     || (it.qty_approved ?? it.qty_requested);
+    const lineTotal = price * qty;
+    subtotal += lineTotal;
+    const el = document.getElementById(`cbulk-linetotal-${it.pr_item_id}`);
+    if (el) {
+      el.textContent = lineTotal > 0 ? fmtMoney(lineTotal) : '—';
+      el.style.color = lineTotal > 0 ? 'var(--text)' : 'var(--faint)';
+    }
+  });
+  const PPH_RATES = { pph23: 0.02, pph15: 0.012, pph22_solar: 0.003, pph22_impor: 0.025 };
+  const includeVAT = document.getElementById('cpoBulkVAT')?.checked || false;
+  const pphType    = document.getElementById('cpoBulkPPHType')?.value || '';
+  const vatAmount  = includeVAT ? subtotal * 0.11 : 0;
+  const pphAmount  = subtotal * (PPH_RATES[pphType] || 0);
+  const total      = subtotal + vatAmount - pphAmount;
+  document.getElementById('cpoBulkSubtotal').textContent  = fmtMoney(subtotal);
+  document.getElementById('cpoBulkVATAmount').textContent = includeVAT ? `+ ${fmtMoney(vatAmount)}` : '—';
+  document.getElementById('cpoBulkPPHAmount').textContent = pphType    ? `− ${fmtMoney(pphAmount)}` : '—';
+  document.getElementById('cpoBulkTotal').textContent     = fmtMoney(total);
+}
+
+async function submitCPOBulk() {
+  const msgEl       = document.getElementById('cpoBulkModalMsg');
   const vendor_name = document.getElementById('poVendorName').value.trim();
   if (!vendor_name) { msgEl.innerHTML = '<div class="msg msg-error">Vendor name is required.</div>'; return; }
-  if (!createPOSelected.size) { msgEl.innerHTML = '<div class="msg msg-error">Select at least one item.</div>'; return; }
 
+  const selectedItems = createPOItems.filter(it => createPOSelected.has(it.pr_item_id));
   const items = [];
-  for (const id of createPOSelected) {
-    const unit_price  = parseFloat(document.getElementById(`cpo-price-${id}`)?.value);
-    const qty_ordered = parseFloat(document.getElementById(`cpo-qty-${id}`)?.value);
+  for (const it of selectedItems) {
+    const unit_price  = parseFloat(document.getElementById(`cbulk-price-${it.pr_item_id}`)?.value);
+    const qty_ordered = parseFloat(document.getElementById(`cpo-qty-${it.pr_item_id}`)?.value);
     if (isNaN(unit_price) || unit_price <= 0 || isNaN(qty_ordered) || qty_ordered <= 0) {
-      msgEl.innerHTML = '<div class="msg msg-error">All selected items need a valid unit price and quantity.</div>';
+      msgEl.innerHTML = '<div class="msg msg-error">All items need a valid unit price.</div>';
       return;
     }
-    items.push({ pr_item_id: id, unit_price, qty_ordered });
+    items.push({ pr_item_id: it.pr_item_id, unit_price, qty_ordered });
   }
 
-  const include_vat = document.getElementById('cpoVAT')?.checked || false;
-  const pph_type    = document.getElementById('cpoPPHType')?.value || null;
+  const include_vat = document.getElementById('cpoBulkVAT')?.checked || false;
+  const pph_type    = document.getElementById('cpoBulkPPHType')?.value || null;
 
   const { ok, data, error } = await apiFetch('/api/po', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1499,8 +1562,10 @@ async function submitCreatePO() {
   });
   if (!ok) { msgEl.innerHTML = `<div class="msg msg-error">${error}</div>`; return; }
 
-  msgEl.innerHTML = `<div class="msg msg-success">✓ Purchase Order <strong>${data.po_number}</strong> created successfully.</div>`;
+  closeCPOBulkModal();
   createPOSelected.clear();
+  const pageMsg = document.getElementById('createPOMsg');
+  pageMsg.innerHTML = `<div class="msg msg-success">✓ Purchase Order <strong>${data.po_number}</strong> created successfully.</div>`;
   await loadCreatePO();
 }
 
