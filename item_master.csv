@@ -1,0 +1,231 @@
+item_id,name_cn,name_en,category,spec,uom,department
+ITEM-0001,轨道含1000套道岔,,Structural,P24,ton,国内进口
+ITEM-0002,过滤器含滤芯,Filter System,Mechanical Parts,DSP100P,set,Icon Ibrani V97
+ITEM-0003,电池,VRLA Lead Acid Battery,Electrical,SAP 12-100,set,发电机房
+ITEM-0004,锚索,PC Strand,Structural,17.8,roll,生产队
+ITEM-0005,内六角螺丝,Hex Bolt Nut,Fasteners,M16*50  8.8级,set,掘机队
+ITEM-0006,锂基脂润滑油,Lithium Grease,Mechanical Parts,安美重载汽车轮毂轴承润滑脂 LG2,drum,掘机队
+ITEM-0007,耐高温锂基脂油,High Temp Lithium Grease,Mechanical Parts,安美重载汽车轮毂轴承润滑脂 LG3,drum,机电队
+ITEM-0008,橡胶垫片,Rubber Gasket,Mechanical Parts,"4""inch JIS 10K",pcs,掘机队
+ITEM-0009,硅酮密封胶,Silicone Sealant,Mechanical Parts,RTV Dextone Grey  up to 350°C @50g,tube,抽放队
+ITEM-0010,管胶,PVC PVC Pipe Adhesive,Mechanical Parts,Dextone @ 400gr,can,机电队
+ITEM-0011,玻璃胶,Glass Sealant,Mechanical Parts,Dextone Neutral Glass & Metal @300ml,can,洗煤
+ITEM-0012,密封胶,Sealant,Mechanical Parts,Dextone Multi Purpose @300ml,can,建筑
+ITEM-0013,槽钢,U-Channel,Structural,120 *12mtr SS400 SNI,pcs,生产队
+ITEM-0014,焊条,Welding Rod,Structural,Bridge THJ422 3.2mm,box,电焊
+ITEM-0015,角磨机割片,Grinder Cutting Wheel,Tools,Excon 107*1.2*16mm,pcs,皮带队
+ITEM-0016,护目镜,Safety Glasses,Safety,White Clear,pcs,生产队
+ITEM-0017,钳子,Combination Pliers,Tools,8'inch,pcs,机电队
+ITEM-0018,刻刀,Cutter,Tools,18mm,pcs,机电队
+ITEM-0019,吊带,Webbing Sling,Tools,5T*6M Powertec,pcs,回收队
+ITEM-0020,轴承,Bearing,Mechanical Parts,SKF 6205,set,维修队
+ITEM-0021,电动扳手,Cordless Brushless Impact Wrench,Water Treatment,DCPB1288,unit,回收队
+ITEM-0022,液压油箱盖,Hydraulic Oil Tank Cap,Building/Civil,174-60-11310,pcs,车队
+ITEM-0023,消声器,Muffler,Mechanical Parts,6251-11-5440,set,车队
+ITEM-0024,驱动齿,Sprocket,Mechanical Parts,208-27-61210,set,车队
+ITEM-0025,驱动齿螺栓,Sprocket Bolt,Fasteners,207-57-51311,pcs,车队
+ITEM-0026,液压油箱粗滤,Hydraulic Filter Strainer,Mechanical Parts,22B-60-11160,pcs,车队
+ITEM-0027,触点清洁器,Contact Cleaner,Electrical,Rexco-18,关,车队
+ITEM-0028,钢管,Seamless Pipe,Structural,"SCH40 4""inch x 6mtr",pcs,掘机队
+ITEM-0029,法兰盘,Flange,Structural,"Carbon Steel 4""inch JIS 10K NS",pcs,掘机队
+ITEM-0030,小托盘,Anchor Tray,Structural,90mm*90mm*10mm,pcs,生产队
+ITEM-0031,锚网片,WireMesh,Structural,M6 (100*100) - 2000*1200mm,pcs,生产队
+ITEM-0032,蝶阀,Butterfly Valve,Mechanical Parts,"4""inch 铸铁杠杆，EPDM 阀座，全通径",pcs,抽采队
+ITEM-0033,闸阀,Gate Valve,Mechanical Parts,"Cast Iron PN16 4""inch",pcs,掘机队
+ITEM-0034,铁三通,CS Tee Fitting,Mechanical Parts,12'inch,pcs,掘机队
+ITEM-0035,自喷漆,Pylox,Consumables,白色 White @12pcs,box,掘进队
+ITEM-0036,除锈剂,Rust Remover,Consumables,WD-40 333ml @24pcs,box,机电队
+ITEM-0037,电焊帽,Welding Helmet,Safety,14“inch Red,pcs,机电队
+ITEM-0038,电焊手套,Hand-held Welding Helmet,Safety,,付,机电队
+ITEM-0039,一字螺丝刀,Slotted Screwdriver,Tools,6*200,pcs,机电队
+ITEM-0040,螺栓取出器,Screw Extractor Set,Fasteners,#1 - #5 (set),set,机电队
+ITEM-0041,脚踏板式高压注油器,High Pressure Foot-Operated Grease Lubricator,Consumables,Kocu GZ-6J (12L),unit,抽采队
+ITEM-0042,潍柴发电机配件,Weichai Parts & Accessories,Electrical,,set,厂家提供
+ITEM-0043,履带板,Track Shoe,Mechanical Parts,20Y-32-31320,set,车队
+ITEM-0044,起动机,Starter Motor,Electrical,600-813-6633 Nikko,set,车队
+ITEM-0045,交流发电机,Engine Alternator,Electrical,600-825-5250 Nikko,set,车队
+ITEM-0046,乙烯基地板,Vinyl Flooring,Building/Civil,SC8 Light Oak,box,建筑
+ITEM-0047,地板粘合剂,Vinyl Adhesive,Building/Civil,Dextone 888 @10kg,drum,建筑
+ITEM-0048,磁性门挡,Magnetic Door Stopper,Building/Civil,Paloma DSP 708,set,建筑
+ITEM-0049,管路无缝钢管,Seamless Pipe,Structural,Sch40 12'inch T: 10.30mm @6mtr,pcs,C
+ITEM-0050,门套,Door Set,Building/Civil,,set,建筑
+ITEM-0051,狗粮,Dog Food,Food,,,Icon Ibrani V101
+ITEM-0052,编织袋,Woven Bag,Consumables,50*80,张,回收队
+ITEM-0053,菱形网,Chain-link Fencing,Structural,4mm*40mm*40mm (1m*10m),roll,回收队
+ITEM-0054,铁板,Steel Plate,Structural,1500*6000*20mm,张,回收队
+ITEM-0055,泳池专用砖,S.Pool Tile,Building/Civil,,,建筑
+ITEM-0056,钢带,W Steel Belt,Structural,180*2.2*2500mm,pcs,国内进口
+ITEM-0057,螺栓,Hex Bolt Nut Screw Spring,Fasteners,M27*190 8.8 Grade,set,国内采购
+ITEM-0058,碎布,Cloth Rag,Consumables,50kg,bag,通用
+ITEM-0059,加强型套筒,Heavy Duty Impact Socket,Water Treatment,1/2 Drive 24mm,pcs,机电队
+ITEM-0060,腰带工具套,Waist Tool Bag,Tools,,pcs,机电队
+ITEM-0061,手动注油器,Hand Grease Lubricator,Consumables,Multipro 500cc,unit,掘机队
+ITEM-0062,履带螺栓,Track Bolt,Fasteners,14X-32-11210,pcs,掘机队
+ITEM-0063,履带螺母,Track Nut,Fasteners,14X-32-11220,pcs,掘机队
+ITEM-0064,密封套件,Seal Kit,Mechanical Parts,207-30-54160,pcs,掘机队
+ITEM-0065,活塞环,Piston Ring,Mechanical Parts,150-30-13430,pcs,掘机队
+ITEM-0066,油封,Packing,Water Treatment,150-30-13442,pcs,掘机队
+ITEM-0067,衬套,Bushing,Mechanical Parts,07177-09040,pcs,掘机队
+ITEM-0068,密封件,Seal,Mechanical Parts,208-30-54150,pcs,掘机队
+ITEM-0069,弹性挡圈,Retaining Ring,Mechanical Parts,04064-07525,pcs,掘机队
+ITEM-0070,惰轮垫零件,U-Packing,Water Treatment,09370-00100,pcs,掘机队
+ITEM-0071,耐磨环,Wear Ring,Mechanical Parts,715501025,pcs,掘机队
+ITEM-0072,注油阀,Lube Valve,Mechanical Parts,795920001,pcs,掘机队
+ITEM-0073,主销,Master Pin,Mechanical Parts,2083251190,pcs,掘机队
+ITEM-0074,履带连杆,Track Link,Mechanical Parts,2083261123,pcs,掘机队
+ITEM-0075,充电式电钻,Cordless Hammer Drill,Tools,DCZC04-24,unit,皮带队
+ITEM-0076,电锤钻头,SDS Max,Tools,Double Spiral Flutes 16*540mm,pcs,机电队
+ITEM-0077,管,PVC Pipe,Mechanical Parts,Rucika AW 1.5“inch @4m,pcs,抽放队
+ITEM-0078,灯,LED Light Bulb,Electrical,Philips 15w LED E27 3000K/6500K 230v,pcs,建筑
+ITEM-0079,单控开关,Single Switch,Electrical,Infinity White A63-K19,pcs,建筑
+ITEM-0080,双控开关,Double Switch,Electrical,Infinity White A63 -K19 Double,pcs,建筑
+ITEM-0081,插座,Power Plug Socket,Tools,Infinity White A63-C06,pcs,建筑
+ITEM-0082,木门,Door,Building/Civil,,set,建筑
+ITEM-0083,氯化铝,PAC,Water Treatment,280,bag,净化水厂
+ITEM-0084,高压石墨盘根,High Pressure Graphite Gland,Mechanical Parts,A20MM @5kg,roll,机电队
+ITEM-0085,尼龙绳,Nylon Rope,Consumables,PP Multi 6mm @200mtr,roll,通风队
+ITEM-0086,喷浆机上橡胶板,Upper Sealing Plate,Mechanical Parts,PZ7,pcs,喷浆队
+ITEM-0087,喷浆机下橡胶板,Bottom Sealing Plate,Mechanical Parts,PZ7,pcs,喷浆队
+ITEM-0088,喷浆机钢衬板,Rotor Plate,Mechanical Parts,PZ7,pcs,喷浆队
+ITEM-0089,喷浆机接头卡扣,Coupler,Mechanical Parts,PZ7 (57mm),pcs,喷浆队
+ITEM-0090,风镐尖,Pneumatic Pick,Tools,G20 450mm,pcs,辅助队
+ITEM-0091,电工热缩带,Heat Shrink Tubing,Electrical,30mm @25mtr,roll,机电队
+ITEM-0092,尼龙扎带,Cable Ties,Electrical,4.8*400,pack,建筑
+ITEM-0093,电线帽,Wire Connector,Electrical,2.5 -4mm (黄）,pack,建筑
+ITEM-0094,链轮段,Gear Segment,Mechanical Parts,14X-27-15112 Verona @9pcs/set,set,车队
+ITEM-0095,拖轮,Carrier Roller,Mechanical Parts,14X-30-00143,pcs,车队
+ITEM-0096,履带总成,Track Shoe Assy,Mechanical Parts,14U-32-07040,pcs,车队
+ITEM-0097,单边支重轮,Single Flange Track Roller,Structural,14X-30-00088 Verona,pcs,车队
+ITEM-0098,双边支重轮,Double Flange Track Roller,Structural,14X-30-00097 Verona,pcs,车队
+ITEM-0099,履带调节器,Track Adjuster Assy,Mechanical Parts,Verona,set,车队
+ITEM-0100,起动机,Dynamo Starter,Electrical,600-813-6633 Nikko,unit,车队
+ITEM-0101,大水罐,Water Tank,Building/Civil,3100ml,can,建筑
+ITEM-0102,增压泵,Water Pump,Water Treatment,,unit,建筑
+ITEM-0103,窗户,Windows,Building/Civil,双开门 100*140,set,建筑
+ITEM-0104,风动角磨机,Pneumatic Angle Grinder,Tools,WP7320,unit,回收队
+ITEM-0105,外卡簧钳,External Snap Ring Pliers,Fasteners,EB 12',pcs,掘机队
+ITEM-0106,内卡簧钳,Internal Snap Ring Pliers,Fasteners,IB 12',pcs,掘机队
+ITEM-0107,尖嘴钳,Needle Nose Pliers,Tools,"8""inch",pcs,机电队
+ITEM-0108,活口扳手,Adjustable Wrench,Tools,12'inch,pcs,机电队
+ITEM-0109,梅花扳手,Ring Spanner,Tools,30*32,pcs,掘机队
+ITEM-0110,氧气带,Oxygen Hose,Mechanical Parts,Blue (6x14)mm*1B*50m,roll,洗煤
+ITEM-0111,乙炔带,Acetylene Hose,Mechanical Parts,Red (9x17)mm *1B *50m,roll,洗煤
+ITEM-0112,断线钳,Bolt Cutter,Tools,24‘,pcs,掘进队
+ITEM-0113,渗透膜,Membrane Filter,Mechanical Parts,ULP 8040,支,国内采购
+ITEM-0114,油封,Seal,Mechanical Parts,TG 100*125*12,set,机电队
+ITEM-0115,高筋面粉,Bread Flour,Food,,25kg/sack,Canteen
+ITEM-0116,中筋面粉,All-Purpose Flour,Food,,25kg/sack,Canteen
+ITEM-0117,低筋面粉,Cake Flour,Food,,25kg/sack,Canteen
+ITEM-0118,全麦面粉,Whole Wheat Flour,Food,,,Canteen
+ITEM-0119,,Corn Flour,Food,,,Canteen
+ITEM-0120,,Barley flour,Food,,,Canteen
+ITEM-0121,无麸质粉,Gluten-Free Flour,Food,,,Canteen
+ITEM-0122,,Starch,Food,,,Canteen
+ITEM-0123,,Self-rising flour,Food,,,Canteen
+ITEM-0124,,Baking Powder,Food,,,Canteen
+ITEM-0125,,Baking Soda,Food,,,Canteen
+ITEM-0126,,Instant Yeast,Food,,,Canteen
+ITEM-0127,,Bread Improver,Food,,,Canteen
+ITEM-0128,,Emulsifier,Food,,,Canteen
+ITEM-0129,,Granulated Sugar,Food,,,Canteen
+ITEM-0130,,Caster Sugar,Food,,,Canteen
+ITEM-0131,,Icing Sugar,Food,,,Canteen
+ITEM-0132,,Brown Sugar,Food,,,Canteen
+ITEM-0133,,Palm Sugar,Food,,,Canteen
+ITEM-0134,,Skimmed Milk Powder,Food,,25kg/bag,Canteen
+ITEM-0135,,Pasteurized Fresh Milk (UHT),Food,,1000ml (12pcs per carton),Canteen
+ITEM-0136,,Condensed Milk,Food,,,Canteen
+ITEM-0137,,Buttermilk,Food,,,Canteen
+ITEM-0138,,Whey Powder,Food,,,Canteen
+ITEM-0139,,Unsalted Butter,Food,,,Canteen
+ITEM-0140,,White Butter,Uncategorized,,,Canteen
+ITEM-0141,,Heavy Cream,Food,,,Canteen
+ITEM-0142,,Cream Cheese,Food,,,Canteen
+ITEM-0143,,Cheddar Cheese,Food,,,Canteen
+ITEM-0144,,Parmesan Cheese,Food,,,Canteen
+ITEM-0145,,Cheese Slices,Food,,,Canteen
+ITEM-0146,,Mozarella Cheese,Food,,,Canteen
+ITEM-0147,,Whole Eggs,Food,,,Canteen
+ITEM-0148,,Cinnamon Powder,Food,,,Canteen
+ITEM-0149,,Espresso Powder,Food,,,Canteen
+ITEM-0150,,Toffieco Essence,Food,,,Canteen
+ITEM-0151,,Vanilla Essence,Food,,,Canteen
+ITEM-0152,,Chocolate Compound (Dark),Food,,,Canteen
+ITEM-0153,,Cocoa Powder,Food,,,Canteen
+ITEM-0154,,Couverture Chocolate,Food,,,Canteen
+ITEM-0155,,Chocolate Chips,Food,,,Canteen
+ITEM-0156,,Raisins,Food,,,Canteen
+ITEM-0157,,Dried Cranberries,Food,,,Canteen
+ITEM-0158,,Walnuts,Food,,,Canteen
+ITEM-0159,,Almonds,Food,,,Canteen
+ITEM-0160,,Pistachios,Food,,,Canteen
+ITEM-0161,,Baking Paper,Food,,,Canteen
+ITEM-0162,,Plastic Wrap,Tools,,,Canteen
+ITEM-0163,高辛烷值汽油,High Octane Fuel,Consumables,VP Q16,drum,Reinforced Conveyor Belt
+ITEM-0164,标准气,Calibration Gas,Instrumentation,"甲烷气样 一氧化碳气样 氧气气样 25 PPM H2S; 100 PPM CO; 2,5% vol (50% LEL) CH4; 18% O2; N2 @58L",can,Monitoring
+ITEM-0165,铁线,Iron Wire,Electrical,BWG #10,bundle,Tunelling
+ITEM-0166,盘圆钢,Coil Bar,Structural,φ6,roll,Ventilation
+ITEM-0167,盘圆钢,Rod Bar,Structural,φ12,ton,Ventilation
+ITEM-0168,松香芯焊锡丝,Rosin Core Solder Wire,Electrical,,roll,机电队
+ITEM-0169,液体助焊剂,Liquid Flux,Electrical,200gr,bottle,机电队
+ITEM-0170,电烙铁头,Soldering Iron Tip,Electrical,Copper (Pointed Horseshoe Head),pcs,Electromechanical
+ITEM-0171,电烙铁电热丝,Soldering Iron Heating Elements,Electrical,60w,pcs,Electromechanical
+ITEM-0172,点焊机,Spot Welder,Electrical,18650 - 220v - 6kw (Copper),unit,Electromechanical
+ITEM-0173,逆变焊机,Inverter Welding Machine,Electrical,KJH-315A  660/1140v,unit,通风队
+ITEM-0174,氧气表,Oxygen Regulator,Consumables,,pcs,Welding
+ITEM-0175,乙炔表,Acetylene Regulator,Consumables,,pcs,Welding
+ITEM-0176,氧气乙炔割枪,Gas Cutting Torch,Consumables,G01-30 / Yamato Single Type M,pcs,Welding
+ITEM-0177,氧气乙炔枪嘴,Gas Cutting Nozzle,Consumables,Ace Type M No 2,pcs,Welding
+ITEM-0178,风动注油器,Pneumatic Grease Lubricator,Consumables,LB75,unit,掘机队
+ITEM-0179,德力西便携式锂电直充,,Electrical,DLX-WY8240,unit,维修队
+ITEM-0180,偏口钳,Diagonal Pliers,Tools,8'inch,pcs,Electromechanical
+ITEM-0181,刀片,Cutter Blade,Tools,,box,Conveyor
+ITEM-0182,三叉套筒扳手,,Tools,14-17-19,pcs,机电队
+ITEM-0183,钢卷尺,Measurement Tape,Tools,5mtr,pcs,Tunelling
+ITEM-0184,大切割片,Cutting Blade,Tools,Kinik 355*3.2*25.4 @25pcs,box,下料队
+ITEM-0185,钻头,Drill Bit,Tools,4mm-20mm,set,皮带队
+ITEM-0186,十字电锤钻头,,Tools,SDS Plus φ20㎜*350㎜,pcs,机电队
+ITEM-0187,石笔,Slate Pen,Consumables,,box,Electromechanical
+ITEM-0188,锂电池 东科电锤,Lithium Battery (DongKe Cordless),Electrical,JLD 88vF,pcs,机电队
+ITEM-0189,喷雾头,Mist Nozzle,Consumables,¾ Connector,pcs,Ventilation
+ITEM-0190,刷子,Brush,Consumables,3'inch,pcs,Reinforced Conveyor Belt
+ITEM-0191,铸铁底阀,Cast Iron Foot Valve,Mechanical Parts,Jis10k 4'inch,pcs,Electromechanical
+ITEM-0192,铸铁逆止阀,Cast Iron Check Valve,Mechanical Parts,Jis10k 4'inch,pcs,Electromechanical
+ITEM-0193,黄铜球阀,Brass Ball Valve,Mechanical Parts,⅜‘inch,pcs,Electromechanical
+ITEM-0194,透明宽胶带,Transparent Clear Wide Tape,Tools,SNS OPP 72mm @100yards,roll,Drainage
+ITEM-0195,低压防水绝缘胶布,Low Voltage Waterproof Insulating Tape,Electrical,,roll,Electromechanical
+ITEM-0196,高压绝缘胶布,High Voltage Insulating Tape,Electrical,,roll,Electromechanical
+ITEM-0197,尼龙棒销,Nylon Rod,Mechanical Parts,浇注尼龙 45*95,pcs,Electromechanical
+ITEM-0198,绳卡子,Wire Cable Clamp,Fasteners,RRT 16mm ⅝’,pcs,Production
+ITEM-0199,斜挎工具包,Crossbody Tool Bag,Tools,,pcs,Electromechanical
+ITEM-0200,大报纸,Newsprint Paper,Consumables,,kg,Reinforced Conveyor Belt
+ITEM-0201,万用表,Multimeter,Instrumentation,测量量程：交流耐压 0-2500v,pcs,采煤队
+ITEM-0202,示波器双通道智能万用表三合一,,Instrumentation,,unit,维修队
+ITEM-0203,风镐,Pneumatic Jack Hammer,Tools,G10,set,Supporting
+ITEM-0204,兩件式雨衣,Two-Piece Raincoat (Top + Pants),Safety,Allsafe RS-003 / RS-002,set,Electromechanical
+ITEM-0205,单轮手推车,Single Wheel Barrow Trolley,Tools,,unit,Conveyor
+ITEM-0206,生料带,Seal Tape,Mechanical Parts,,roll,Electromechanical
+ITEM-0207,高压钢丝软管,High Pressure Steelwire Braided Hose,Mechanical Parts,φ50,pcs,Shotcrete
+ITEM-0208,交流接触器,AC Contactor,Electrical,CHINT CJ 19-32 / 220v,pcs,Conveyor
+ITEM-0209,双电源开关切换柜,Dual Power Change Over Switch Cabinet,Electrical,380V   1200A 手动转换,unit,Power Supply
+ITEM-0210,平头按钮开关,Flat-Head Push-Button Switch,Electrical,Y090 / LAY37-11BN,pcs,机电队
+ITEM-0211,电瓶水,Battery Water,Electrical,蓝色 Blue,bottle,Electromechanical
+ITEM-0212,电池电解液,Electrolyte Water,Electrical,SD 1260 @30ltr,drum,Maintenance
+ITEM-0213,普通电话机,Telephone Unit,Electrical,来电显示 Caller ID,unit,机电队
+ITEM-0214,油漆,Oil Paint,Consumables,黑色 Black,drum,通风队
+ITEM-0215,手摇补鞋机,Hand-crank Shoe Patch Machine,Mechanical Parts,,unit,通风队
+ITEM-0216,风筒卯扣,Eyelet,Safety,16mm,pcs,Ventilation
+ITEM-0217,风筒卯扣钳子,Eyelet Punch,Safety,16mm,pcs,Ventilation
+ITEM-0218,风筒线,Nylon Twine,Consumables,,roll,通风队
+ITEM-0219,三叉套筒扳手,Y-Shaped Socket Wrench,Tools,14-17-19,pcs,机电队
+ITEM-0220,,"Rachet Drive 1""",Tools,,pcs,Maintenance
+ITEM-0221,,"Rachet drive 3/4""",Tools,,pcs,Maintenance
+ITEM-0222,,"Handle T Drive 1""",Tools,,pcs,Maintenance
+ITEM-0223,,"Handle T Drive 3/4""",Tools,,pcs,Maintenance
+ITEM-0224,,Ring Pas 10,Tools,,pcs,Maintenance
+ITEM-0225,,Ring Pas 8,Tools,,pcs,Maintenance
+ITEM-0226,,Vice grip,Tools,,pcs,Maintenance
+ITEM-0227,,Dongkrak Hidrolik 50 Ton,Tools,,pcs,Maintenance
+ITEM-0228,,Webbing Sling 2 Ton,Tools,,pcs,Maintenance
+ITEM-0229,,Oring Kit Oring Box Set Inchi,Mechanical Parts,,pcs,Maintenance
+ITEM-0230,,Oring Kit Oring Box Set mm,Mechanical Parts,,pcs,Maintenance

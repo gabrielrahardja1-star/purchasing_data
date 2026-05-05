@@ -1,0 +1,21 @@
+services:
+  app:
+    build: .
+    container_name: procurement_app
+    restart: unless-stopped
+    environment:
+      - DB_PATH=/app/data/procurement.db
+      - SESSION_SECRET=${SESSION_SECRET}
+      - NODE_ENV=production
+    volumes:
+      # Persistent data — database files and GL export CSVs
+      - ./data:/app/data
+      - ./exports:/app/exports
+    ports:
+      - "3000:3000"
+    networks:
+      - procurement_net
+
+networks:
+  procurement_net:
+    driver: bridge
