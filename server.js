@@ -774,5 +774,64 @@ app.get('/api/po/:id/export', requireAuth, (req, res) => {
   res.send(csv);
 });
 
+// ── Admin: Delete routes ───────────────────────────────────────────────────────
+
+// Delete PR (cascades to pr_items and approvals)
+app.delete('/api/pr/:id', requireRole('admin'), (req, res) => {
+  const pr = db.prepare('SELECT pr_id FROM pr WHERE pr_id = ?').get(req.params.id);
+  if (!pr) return res.status(404).json({ error: 'PR not found' });
+  db.transaction(() => {
+    db.prepare('DELETE FROM approvals WHERE pr_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM pr_items WHERE pr_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM pr WHERE pr_id = ?').run(req.params.id);
+  })();
+  res.json({ ok: true });
+});
+
+// Delete a single PR line item
+app.delete('/api/pr-items/:itemId', requireRole('admin'), (req, res) => {
+  const item = db.prepare('SELECT pr_item_id FROM pr_items WHERE pr_item_id = ?').get(req.params.itemId);
+  if (!item) return res.status(404).json({ error: 'Item not found' });
+  db.prepare('DELETE FROM pr_items WHERE pr_item_id = ?').run(req.params.itemId);
+  res.json({ ok: true });
+});
+
+// Delete PO (cascades to po_items and gl_export_log)
+app.delete('/api/po/:id', requireRole('admin'), (req, res) => {
+  const po = db.prepare('SELECT po_id FROM po WHERE po_id = ?').get(req.params.id);
+  if (!po) return res.status(404).json({ error: 'PO not found' });
+  db.transaction(() => {
+    db.prepare('DELETE FROM gl_export_log WHERE po_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM po_items WHERE po_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM po WHERE po_id = ?').run(req.params.id);
+  })();
+  res.json({ ok: true });
+});
+
+// Delete item from item master
+app.delete('/api/items/:id', requireRole('admin'), (req, res) => {
+  const item = db.prepare('SELECT item_id FROM items WHERE item_id = ?').get(req.params.id);
+  if (!item) return res.status(404).json({ error: 'Item not found' });
+  db.prepare('DELETE FROM items WHERE item_id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+// Get all users
+app.get('/api/users', requireRole('admin'), (_req, res) => {
+  const users = db.prepare('SELECT id, username, role, full_name FROM users ORDER BY id').all();
+  res.json(users);
+});
+
+// Delete user
+app.delete('/api/users/:id', requireRole('admin'), (req, res) => {
+  if (String(req.session.user.id) === String(req.params.id)) {
+    return res.status(400).json({ error: 'Cannot delete your own account' });
+  }
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
 // ── Start ─────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => console.log(`Procurement app running → http://localhost:${PORT}`));

@@ -138,6 +138,11 @@ nav{display:flex;flex-direction:column;gap:2px}
 .filter-pill.active{
   background:var(--surface2);color:var(--text);border-color:var(--border-strong);
 }
+.btn-delete{
+  padding:5px 10px;border-radius:var(--r-sm);font-size:11px;font-weight:600;
+  background:transparent;border:1px solid #f87171;color:#ef4444;cursor:pointer;transition:.12s;
+}
+.btn-delete:hover{background:#fef2f2}
 
 /* ── Card / surface ── */
 .surface{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden}
@@ -424,7 +429,7 @@ textarea.field-input{resize:vertical;min-height:70px}
           <thead class="tbl-head">
             <tr>
               <th>PR Number</th><th>Requester</th>
-              <th>Date</th><th>Items</th><th>Fulfillment</th><th>Pipeline</th><th>Status</th>
+              <th>Date</th><th>Items</th><th>Fulfillment</th><th>Pipeline</th><th>Status</th><th></th>
             </tr>
           </thead>
           <tbody id="prTableBody"></tbody>
@@ -664,10 +669,23 @@ textarea.field-input{resize:vertical;min-height:70px}
       <div class="surface">
         <table>
           <thead class="tbl-head">
-            <tr><th>Item ID</th><th>Name (EN)</th><th>Name (CN)</th><th>Category</th><th>UOM</th><th>Department</th></tr>
+            <tr><th>Item ID</th><th>Name (EN)</th><th>Name (CN)</th><th>Category</th><th>UOM</th><th>Department</th><th></th></tr>
           </thead>
           <tbody id="adminItemTableBody"></tbody>
         </table>
+      </div>
+
+      <!-- User Management -->
+      <div style="margin-top:32px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:12px">User Management</div>
+        <div class="surface">
+          <table>
+            <thead class="tbl-head">
+              <tr><th>ID</th><th>Username</th><th>Full Name</th><th>Role</th><th></th></tr>
+            </thead>
+            <tbody id="userMgmtBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -949,7 +967,7 @@ function navTo(page) {
   if (page === 'poList')       loadPOList();
   if (page === 'createPO')     loadCreatePO();
   if (page === 'approvals')    loadMDView();
-  if (page === 'itemMaster')   loadItemMaster();
+  if (page === 'itemMaster')   { loadItemMaster(); loadUserManagement(); }
   if (page === 'createPR')     renderSummary();
   renderPipelinePreview();
 }
@@ -1018,7 +1036,7 @@ function renderPRTable() {
 
   const body = document.getElementById('prTableBody');
   if (!filtered.length) {
-    body.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--faint);padding:40px;font-size:13px">No purchase requests.</td></tr>`;
+    body.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--faint);padding:40px;font-size:13px">No purchase requests.</td></tr>`;
     return;
   }
   body.innerHTML = filtered.map(pr => `
@@ -1033,9 +1051,10 @@ function renderPRTable() {
         ${statusPill(pr.status)}
         <span style="font-size:10.5px;color:var(--faint);margin-left:6px">${pr.approval_summary}</span>
       </td>
+      <td style="text-align:right">${currentRole === 'admin' ? `<button class="btn-delete btn-sm" onclick="event.stopPropagation();adminDeletePR(${pr.pr_id},'${pr.pr_number}')">Delete</button>` : ''}</td>
     </tr>
     <tr id="pr-items-row-${pr.pr_id}" class="pr-expand-row">
-      <td colspan="8" class="pr-expand-cell">
+      <td colspan="9" class="pr-expand-cell">
         <div id="pr-items-detail-${pr.pr_id}"></div>
       </td>
     </tr>`).join('');
@@ -1096,16 +1115,16 @@ async function loadPRList() {
     }
   }
   const body = document.getElementById('prTableBody');
-  body.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--faint);padding:30px;font-size:13px">Loading…</td></tr>`;
+  body.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--faint);padding:30px;font-size:13px">Loading…</td></tr>`;
   const apiUrl = prSearchTerm ? `/api/pr?search=${encodeURIComponent(prSearchTerm)}` : '/api/pr';
   const { ok, data, error } = await apiFetch(apiUrl);
   if (!ok) {
-    body.innerHTML = `<tr><td colspan="8"><div class="msg msg-error">${error}</div></td></tr>`;
+    body.innerHTML = `<tr><td colspan="9"><div class="msg msg-error">${error}</div></td></tr>`;
     return;
   }
   allPRs = data;
   if (prSearchTerm && !data.length) {
-    body.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--faint);padding:40px;font-size:13px">No PRs match "<strong>${escHtml(prSearchTerm)}</strong>"</td></tr>`;
+    body.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--faint);padding:40px;font-size:13px">No PRs match "<strong>${escHtml(prSearchTerm)}</strong>"</td></tr>`;
     return;
   }
   renderPRTable();
@@ -1165,12 +1184,13 @@ function renderRequesterItemsTable(pr) {
       <td class="text-dim">${it.uom}</td>
       <td>${statusPill(it.status||'pending')}</td>
       <td id="req-item-action-${it.pr_item_id}">${action}</td>
+      <td>${currentRole === 'admin' ? `<button class="btn-delete btn-sm" onclick="adminDeletePRItem(${it.pr_item_id},${pr.pr_id})">Delete</button>` : ''}</td>
     </tr>`;
   }).join('');
   return `<table class="pr-expand-table">
     <thead><tr>
       <th>Item</th><th>Qty Requested</th><th>Qty Approved</th>
-      <th>Qty Fulfilled</th><th>Fulfillment</th><th>UOM</th><th>Status</th><th>Action</th>
+      <th>Qty Fulfilled</th><th>Fulfillment</th><th>UOM</th><th>Status</th><th>Action</th>${currentRole === 'admin' ? '<th></th>' : ''}
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
@@ -1555,6 +1575,7 @@ async function loadPOList() {
       <td style="text-align:right;display:flex;gap:6px;justify-content:flex-end">
         <button class="btn-outline" onclick="event.stopPropagation();window.open('/api/po/${po.po_id}/print','_blank')" title="Print / Save as PDF">Print PDF ↗</button>
         <button class="btn-outline" onclick="event.stopPropagation();exportGL(${po.po_id},'${po.po_number}')">Export GL ↓</button>
+        ${currentRole === 'admin' ? `<button class="btn-delete btn-sm" onclick="event.stopPropagation();adminDeletePO(${po.po_id},'${po.po_number}')">Delete</button>` : ''}
       </td>
     </tr>
     <tr id="po-detail-row-${po.po_id}" class="pr-expand-row">
@@ -1938,7 +1959,8 @@ function renderItemMasterTable(items) {
       <td class="text-dim">${it.category||''}</td>
       <td class="text-dim">${it.uom||''}</td>
       <td class="text-dim">${it.department||''}</td>
-    </tr>`).join('') || `<tr><td colspan="6" style="text-align:center;color:var(--faint);padding:40px">No items found.</td></tr>`;
+      <td style="text-align:right"><button class="btn-delete btn-sm" onclick="adminDeleteItem('${it.item_id}')">Delete</button></td>
+    </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:40px">No items found.</td></tr>`;
 }
 
 function showAdminNewItemForm() {
@@ -1993,6 +2015,64 @@ async function adminSaveNewItem() {
   msgEl.innerHTML = `<div class="msg msg-success">Item <strong>${data.item_id}</strong> added successfully.</div>`;
   hideAdminNewItemForm();
   loadItemMaster();
+}
+
+// ── Admin: Delete actions ─────────────────────────────────────────────────────
+
+async function adminDeletePR(pr_id, pr_number) {
+  if (!confirm(`Delete PR ${pr_number} and all its line items?\nThis cannot be undone.`)) return;
+  const { ok, error } = await apiFetch(`/api/pr/${pr_id}`, { method: 'DELETE' });
+  if (!ok) { alert(`Error: ${error}`); return; }
+  loadPRList();
+}
+
+async function adminDeletePRItem(pr_item_id, pr_id) {
+  if (!confirm('Delete this line item? This cannot be undone.')) return;
+  const { ok, error } = await apiFetch(`/api/pr-items/${pr_item_id}`, { method: 'DELETE' });
+  if (!ok) { alert(`Error: ${error}`); return; }
+  // Refresh the expanded detail for this PR
+  const detail = document.getElementById(`pr-items-detail-${pr_id}`);
+  if (detail) {
+    const { ok: ok2, data: pr } = await apiFetch(`/api/pr/${pr_id}`);
+    if (ok2) detail.innerHTML = renderRequesterItemsTable(pr);
+  }
+}
+
+async function adminDeletePO(po_id, po_number) {
+  if (!confirm(`Delete PO ${po_number}?\nThis cannot be undone.`)) return;
+  const { ok, error } = await apiFetch(`/api/po/${po_id}`, { method: 'DELETE' });
+  if (!ok) { alert(`Error: ${error}`); return; }
+  loadPOList();
+}
+
+async function adminDeleteItem(item_id) {
+  if (!confirm(`Delete item ${item_id} from the item master?\nThis cannot be undone.`)) return;
+  const { ok, error } = await apiFetch(`/api/items/${item_id}`, { method: 'DELETE' });
+  if (!ok) { alert(`Error: ${error}`); return; }
+  loadItemMaster();
+}
+
+async function loadUserManagement() {
+  const { ok, data: users, error } = await apiFetch('/api/users');
+  if (!ok) { document.getElementById('userMgmtBody').innerHTML = `<tr><td colspan="4"><div class="msg msg-error">${error}</div></td></tr>`; return; }
+  const body = document.getElementById('userMgmtBody');
+  body.innerHTML = users.map(u => `
+    <tr class="tbl-row">
+      <td class="mono" style="font-size:12px">${u.id}</td>
+      <td style="font-weight:500">${escHtml(u.username)}</td>
+      <td>${escHtml(u.full_name || '—')}</td>
+      <td><span class="pill pill-${u.role === 'admin' ? 'approved' : u.role === 'md' ? 'partial' : 'unfulfilled'}">${u.role}</span></td>
+      <td style="text-align:right">
+        <button class="btn-delete btn-sm" onclick="adminDeleteUser(${u.id}, '${escHtml(u.username)}')">Delete</button>
+      </td>
+    </tr>`).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--faint);padding:30px">No users.</td></tr>`;
+}
+
+async function adminDeleteUser(user_id, username) {
+  if (!confirm(`Delete user "${username}"?\nThis cannot be undone.`)) return;
+  const { ok, error } = await apiFetch(`/api/users/${user_id}`, { method: 'DELETE' });
+  if (!ok) { alert(`Error: ${error}`); return; }
+  loadUserManagement();
 }
 
 // ── Departments ────────────────────────────────────────────────────────────────
