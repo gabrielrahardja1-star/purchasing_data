@@ -1046,7 +1046,7 @@ function renderPRTable() {
       <td class="text-dim" style="font-family:var(--mono);font-size:12px">${pr.date_requested}</td>
       <td style="font-size:13px;color:var(--text)">${pr.item_count}</td>
       <td>${prFulfillmentPill(pr)}</td>
-      <td>${timeline(statusToStage(pr.status), true)}</td>
+      <td>${timeline(prStage(pr), true)}</td>
       <td>
         ${statusPill(pr.status)}
         <span style="font-size:10.5px;color:var(--faint);margin-left:6px">${pr.approval_summary}</span>
@@ -1246,8 +1246,8 @@ async function toggleMyPRItems(pr_id) {
       <td style="font-family:var(--serif);font-size:14px">${it.estimated_unit_price ? fmtMoney(it.estimated_unit_price) : (it.est_unit_price ? fmtMoney(it.est_unit_price) : '—')}</td>
       <td>${statusPill(it.status || 'pending')}</td>
     </tr>`).join('');
-  const stageNames = ['Submitted','Pricing','MD Review','PO Created','GL Export'];
-  const currentStage = statusToStage(pr.status);
+  const stageNames = ['Submitted','MD Review','PO Created','GL Export'];
+  const currentStage = prStage(pr);
   detail.innerHTML = `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 18px;margin-bottom:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -1708,7 +1708,7 @@ async function loadMDView() {
         <span id="md-summary-${pr.pr_id}" class="pill pill-draft" style="font-size:10px;padding:3px 10px">
           ${summaryBadge(pr.line_items)}
         </span>
-        ${timeline(statusToStage(pr.status))}
+        ${timeline(prStage(pr))}
       </div>
       <table class="approval-table">
         <thead>
