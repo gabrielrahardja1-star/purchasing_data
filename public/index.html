@@ -138,13 +138,6 @@ nav{display:flex;flex-direction:column;gap:2px}
 .filter-pill.active{
   background:var(--surface2);color:var(--text);border-color:var(--border-strong);
 }
-.filter-pill-f{
-  padding:7px 14px;border-radius:999px;font-size:12px;font-weight:600;
-  border:1px solid var(--border);color:var(--dim);background:transparent;transition:.12s;
-}
-.filter-pill-f.active{
-  background:var(--surface2);color:var(--text);border-color:var(--border-strong);
-}
 
 /* ── Card / surface ── */
 .surface{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden}
@@ -360,13 +353,8 @@ textarea.field-input{resize:vertical;min-height:70px}
     </button>
     <button class="nav-item" data-page="prList" onclick="navTo('prList')">
       <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span>
-      <span style="flex:1">Approval</span>
+      <span style="flex:1">PR Management</span>
       <span class="nav-badge" id="nav-badge-pr">—</span>
-    </button>
-    <button class="nav-item" data-page="prManagement" onclick="navTo('prManagement')">
-      <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
-      <span style="flex:1">Fulfillment</span>
-      <span class="nav-badge" id="nav-badge-fulfill">—</span>
     </button>
     <button class="nav-item" data-page="approvals" onclick="navTo('approvals')" id="nav-approvals-btn">
       <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg></span>
@@ -459,24 +447,6 @@ textarea.field-input{resize:vertical;min-height:70px}
       </div>
     </div>
 
-    <!-- ── PR Fulfillment ── -->
-    <div id="page-prManagement" class="page">
-      <div class="filter-pills" id="pr-fulfill-pills">
-        <button class="filter-pill-f active" data-filter="all" onclick="setPRFulfillFilter('all')">All Approved</button>
-        <button class="filter-pill-f" data-filter="unfulfilled" onclick="setPRFulfillFilter('unfulfilled')">Unfulfilled</button>
-        <button class="filter-pill-f" data-filter="partial" onclick="setPRFulfillFilter('partial')">Partial</button>
-        <button class="filter-pill-f" data-filter="fulfilled" onclick="setPRFulfillFilter('fulfilled')">Fulfilled</button>
-      </div>
-      <div id="prMgmtMsg"></div>
-      <div class="surface">
-        <table>
-          <thead class="tbl-head">
-            <tr><th>PR Number</th><th>Requester</th><th>Department</th><th>Date</th><th>Approved Items</th><th>Fulfillment</th><th></th></tr>
-          </thead>
-          <tbody id="allPRsBody"></tbody>
-        </table>
-      </div>
-    </div>
 
     <!-- ── Approvals ── -->
     <div id="page-approvals" class="page">
@@ -953,9 +923,9 @@ function prStage(pr) {
 
 // ── Navigation ─────────────────────────────────────────────────────────────────
 const PAGE_META = {
-  prList:       { title:'Approval',            sub:'View and filter all purchase requests by approval status' },
+  prList:       { title:'PR Management',       sub:'Manage and track all procurement requests' },
   myPRs:        { title:'My Requests',        sub:'Track the status of your submitted purchase requests' },
-  prManagement: { title:'Fulfillment',         sub:'Track approved purchase requests by fulfillment status' },
+  prManagement: { title:'PR Management',      sub:'Review pricing and manage all purchase requests' },
   createPR:     { title:'New Request',        sub:'Submit a new purchase request' },
   approvals:    { title:'Approvals',          sub:'Review and approve line items for pending PRs' },
   createPO:     { title:'Create Purchase Order', sub:'Select approved items across PRs and issue a PO to a vendor' },
@@ -976,7 +946,6 @@ function navTo(page) {
 
   if (page === 'prList')       loadPRList();
   if (page === 'myPRs')        loadMyPRs();
-  if (page === 'prManagement') loadPRManagement();
   if (page === 'poList')       loadPOList();
   if (page === 'createPO')     loadCreatePO();
   if (page === 'approvals')    loadMDView();
@@ -992,7 +961,6 @@ function switchRole(role) {
     createPR:     ['requester', 'purchasing', 'admin'],
     myPRs:        ['requester'],
     prList:       ['purchasing', 'admin'],
-    prManagement: ['purchasing', 'admin'],
     approvals:    ['md', 'admin'],
     createPO:     ['purchasing', 'admin'],
     poList:       ['purchasing', 'admin'],
@@ -1004,9 +972,9 @@ function switchRole(role) {
   });
 
   if (role === 'requester') navTo('myPRs');
-  else if (role === 'purchasing') navTo('prManagement');
+  else if (role === 'purchasing') navTo('prList');
   else if (role === 'md') navTo('approvals');
-  else navTo('prList'); // admin — lands on Approval tab
+  else navTo('prList'); // admin
 }
 
 // ── PR filter ──────────────────────────────────────────────────────────────────
@@ -1016,14 +984,6 @@ function setPRFilter(f) {
   renderPRTable();
 }
 
-let prFulfillFilter = 'all';
-let allPRsFulfill = [];
-
-function setPRFulfillFilter(f) {
-  prFulfillFilter = f;
-  document.querySelectorAll('#pr-fulfill-pills .filter-pill-f').forEach(b => b.classList.toggle('active', b.dataset.filter === f));
-  renderPRMgmt();
-}
 
 function prFulfillmentPill(pr) {
   const s = pr.fulfillment_status;
@@ -1280,51 +1240,6 @@ async function toggleMyPRItems(pr_id) {
       <thead><tr><th>Item</th><th>Qty</th><th>UOM</th><th>Est. Unit Price</th><th>Status</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
-}
-
-// ── Fulfillment view ───────────────────────────────────────────────────────────
-async function loadPRManagement() {
-  const body = document.getElementById('allPRsBody');
-  body.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:30px;font-size:13px">Loading…</td></tr>`;
-  const { ok, data: prs, error } = await apiFetch('/api/pr');
-  if (!ok) { body.innerHTML = `<tr><td colspan="7"><div class="msg msg-error">${error}</div></td></tr>`; return; }
-  // Only show approved PRs (they have meaningful fulfillment status)
-  allPRsFulfill = prs.filter(p => p.status === 'approved');
-  // Badge: count unfulfilled approved PRs
-  const unfulfilled = allPRsFulfill.filter(p => p.fulfillment_status === 'unfulfilled' || !p.fulfillment_status).length;
-  document.getElementById('nav-badge-fulfill').textContent = unfulfilled || '—';
-  // Update filter pill counts
-  ['unfulfilled','partial','fulfilled'].forEach(s => {
-    const btn = document.querySelector(`#pr-fulfill-pills .filter-pill-f[data-filter="${s}"]`);
-    if (btn) btn.textContent = `${s.charAt(0).toUpperCase()+s.slice(1)} · ${allPRsFulfill.filter(p => (p.fulfillment_status||'unfulfilled') === s).length}`;
-  });
-  renderPRMgmt();
-}
-
-function renderPRMgmt() {
-  const body = document.getElementById('allPRsBody');
-  const filtered = prFulfillFilter === 'all'
-    ? allPRsFulfill
-    : allPRsFulfill.filter(p => (p.fulfillment_status || 'unfulfilled') === prFulfillFilter);
-  if (!filtered.length) {
-    body.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:40px;font-size:13px">No approved PRs${prFulfillFilter !== 'all' ? ` with status "${prFulfillFilter}"` : ''}.</td></tr>`;
-    return;
-  }
-  body.innerHTML = filtered.map(pr => `
-    <tr class="tbl-row" style="cursor:pointer" onclick="togglePRItems(${pr.pr_id}, this)">
-      <td class="mono">${pr.pr_number}</td>
-      <td style="font-size:13px;color:var(--text)">${pr.requested_by}</td>
-      <td class="text-dim">${pr.department}</td>
-      <td class="text-dim" style="font-family:var(--mono);font-size:12px">${pr.date_requested}</td>
-      <td style="font-size:13px">${pr.approved_count ?? pr.item_count}</td>
-      <td>${prFulfillmentPill(pr)}</td>
-      <td style="text-align:right"><span style="font-size:11px;color:var(--faint)">↓ expand</span></td>
-    </tr>
-    <tr id="pr-items-row-${pr.pr_id}" class="pr-expand-row">
-      <td colspan="7" class="pr-expand-cell">
-        <div id="pr-items-detail-${pr.pr_id}"></div>
-      </td>
-    </tr>`).join('');
 }
 
 // ── Vendor autocomplete ────────────────────────────────────────────────────────
