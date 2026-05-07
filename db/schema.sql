@@ -110,3 +110,9 @@ CREATE TABLE IF NOT EXISTS users (
   full_name     TEXT,
   created_at    TEXT DEFAULT (datetime('now'))
 );
+
+-- Phase 4: Vendor FK on po
+ALTER TABLE po ADD COLUMN vendor_id TEXT REFERENCES vendors(vendor_id);
+
+-- Phase 5: Base item grouping (self-referential)
+ALTER TABLE items ADD COLUMN base_item_id TEXT REFERENCES items(item_id);
