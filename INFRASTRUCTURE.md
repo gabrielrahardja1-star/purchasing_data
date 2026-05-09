@@ -23,9 +23,30 @@ Host: /opt/purchasing_data/
 │   └── procurement.db          ← bind-mounted into container (NOT baked in)
 └── exports/
     └── GL_PO-*.csv             ← bind-mounted into container
+
+Container: /app/
+├── server.js                   ← Express API + DB init
+├── public/
+│   └── index.html              ← entire frontend (vanilla JS SPA)
+├── db/
+│   └── schema.sql              ← schema run on every startup
+├── data/                       ← bind-mount from host data/
+│   └── procurement.db          ← live database
+└── exports/                    ← bind-mount from host exports/
+    └── GL_PO-*.csv
 ```
 
 The database and exports live **on the host**, not inside the container. Rebuilding or redeploying the container never touches data.
+
+### Item Master Location
+
+| Location | Path |
+|---|---|
+| Live DB (server) | `/opt/purchasing_data/data/procurement.db` → table `items` |
+| Live DB (local) | `db/procurement.db` → table `items` |
+| Original source | `item_master.csv` (imported once via `ingest.py`) |
+| Excel sources | `2025年月度材料计划/*.xlsx` + extra files (ingested via `enrich_items.py`) |
+| Schema definition | `db/schema.sql` — `items` table columns: `item_id`, `name_en`, `name_cn`, `category`, `spec`, `uom`, `department`, `base_item_id` |
 
 ---
 
