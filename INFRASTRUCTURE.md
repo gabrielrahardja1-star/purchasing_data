@@ -135,10 +135,79 @@ Schema is initialized from `db/schema.sql` on every server start. `ALTER TABLE` 
 
 ---
 
+---
+
+## ClickHouse (Analytics & New Schema)
+
+ClickHouse runs as a second container alongside the Node.js app.
+
+```
+docker-compose.yml
+├── app (procurement_app)       — Node.js, port 3000
+└── clickhouse (procurement_clickhouse) — port 8123 (HTTP), 9000 (native)
+    └── volume: clickhouse_data (persistent)
+    └── init:   db/clickhouse_schema.sql (41 tables)
+```
+
+### First-time setup
+
+```bash
+# 1. Set password in .env
+echo "CLICKHOUSE_PASSWORD=yourpassword" >> .env
+
+# 2. Start both services
+docker compose up -d
+
+# 3. Run SQLite → ClickHouse migration (dry-run first)
+pip install requests
+python3 migrate_clickhouse.py --dry-run
+python3 migrate_clickhouse.py
+
+# 4. Verify
+curl -s "http://localhost:8123/?database=procurement&query=SELECT+name,total_rows+FROM+system.tables+WHERE+database='procurement'+ORDER+BY+name" \
+  -u procurement_user:yourpassword
+```
+
+### ClickHouse schema (41 tables)
+
+| Group | Tables |
+|---|---|
+| Master data | companies, departments, cost_centers, gl_accounts, tax_codes, payment_terms, users, app_sessions |
+| Vendor | vendors, vendor_bank_accounts, vendor_documents |
+| Item | item_categories, items, item_vendor_prices |
+| Workflow | approval_workflows, approval_steps |
+| PR | purchase_requests, purchase_request_items |
+| RFQ | request_for_quotes, request_for_quote_items |
+| Quotation | supplier_quotations, supplier_quotation_items |
+| PO | purchase_orders, purchase_order_items, purchase_order_tax_lines |
+| Receiving | goods_receipts, goods_receipt_items |
+| Invoice | supplier_invoices, supplier_invoice_items, supplier_invoice_tax_lines |
+| Payment | payments |
+| GL | gl_exports, gl_export_lines |
+| Budget | budget_headers, budget_lines, budget_movements |
+| Audit | approval_actions, status_history, procurement_events, attachments, comments |
+
+Engine: `ReplacingMergeTree(version)` for current-state tables, `MergeTree` for append-only audit tables.
+
+### Node.js client
+
+`clickhouse.js` — thin HTTP wrapper. Key functions:
+
+```javascript
+const ch = require('./clickhouse');
+const rows = await ch.query('SELECT * FROM items FINAL WHERE company_id = {cid:String}', { cid: 'PTMMI' });
+await ch.insert('items', [{ item_id: '...', ... }]);
+await ch.ping(); // health check
+```
+
+---
+
 ## Current Gaps (Pending)
 
 - [ ] Automated daily DB backup cron on server
 - [ ] SSL certificate + domain name
 - [ ] GitHub token stored on server (avoid interactive password on `git pull`)
-- [ ] `vendor_id` wired into Create PO flow (currently stored as free text `vendor_name`)
-- [ ] Item master UI updated to show `spec` column and grouped base item view
+- [ ] Migrate app API routes from SQLite (better-sqlite3) to ClickHouse client
+- [ ] Build receiving, invoice, payment UI modules
+- [ ] Budget and cost center UI
+- [ ] Reporting dashboards (spend by vendor/category, PR aging, open POs)

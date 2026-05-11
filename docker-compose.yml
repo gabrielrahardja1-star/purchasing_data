@@ -7,14 +7,52 @@ services:
       - DB_PATH=/app/data/procurement.db
       - SESSION_SECRET=${SESSION_SECRET}
       - NODE_ENV=production
+      - CLICKHOUSE_HOST=clickhouse
+      - CLICKHOUSE_PORT=8123
+      - CLICKHOUSE_DB=procurement
+      - CLICKHOUSE_USER=procurement_user
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
     volumes:
-      # Persistent data — database files and GL export CSVs
       - ./data:/app/data
       - ./exports:/app/exports
     ports:
       - "3000:3000"
     networks:
       - procurement_net
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8-alpine
+    container_name: procurement_clickhouse
+    restart: unless-stopped
+    environment:
+      - CLICKHOUSE_DB=procurement
+      - CLICKHOUSE_USER=procurement_user
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./db/clickhouse_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    ports:
+      - "8123:8123"   # HTTP interface (used by Node.js client)
+      - "9000:9000"   # Native TCP interface
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - procurement_net
+
+volumes:
+  clickhouse_data:
 
 networks:
   procurement_net:
