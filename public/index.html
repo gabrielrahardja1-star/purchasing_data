@@ -669,7 +669,7 @@ textarea.field-input{resize:vertical;min-height:70px}
       <div class="surface">
         <table>
           <thead class="tbl-head">
-            <tr><th>Item ID</th><th>Name (EN)</th><th>Name (CN)</th><th>Category</th><th>UOM</th><th>Department</th><th></th></tr>
+            <tr><th>Item ID</th><th>Name (EN)</th><th>Name (CN)</th><th>Spec</th><th>Category</th><th>UOM</th><th>Department</th><th></th></tr>
           </thead>
           <tbody id="adminItemTableBody"></tbody>
         </table>
@@ -1933,7 +1933,7 @@ let adminSimilarTimer = null;
 async function loadItemMaster() {
   const { ok, data: items, error } = await apiFetch('/api/items');
   if (!ok) {
-    document.getElementById('adminItemTableBody').innerHTML = `<tr><td colspan="6"><div class="msg msg-error">${error}</div></td></tr>`; return;
+    document.getElementById('adminItemTableBody').innerHTML = `<tr><td colspan="8"><div class="msg msg-error">${error}</div></td></tr>`; return;
   }
   allMasterItems = items;
   renderItemMasterTable(items);
@@ -1956,11 +1956,12 @@ function renderItemMasterTable(items) {
       <td style="font-family:var(--mono);font-size:12px;color:var(--accent)">${it.item_id}</td>
       <td style="font-size:13px;color:var(--text)">${it.name_en}</td>
       <td class="text-dim">${it.name_cn||''}</td>
-      <td class="text-dim">${it.category||''}</td>
+      <td class="text-dim" style="font-family:var(--mono);font-size:11px">${it.spec||''}</td>
+      <td class="text-dim">${it.category_name||it.category||''}</td>
       <td class="text-dim">${it.uom||''}</td>
       <td class="text-dim">${it.department||''}</td>
       <td style="text-align:right"><button class="btn-delete btn-sm" onclick="adminDeleteItem('${it.item_id}')">Delete</button></td>
-    </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:40px">No items found.</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--faint);padding:40px">No items found.</td></tr>`;
 }
 
 function showAdminNewItemForm() {

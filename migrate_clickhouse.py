@@ -30,19 +30,21 @@ except ImportError:
 # ── Config ────────────────────────────────────────────────────────────────────
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dry-run',   action='store_true')
-parser.add_argument('--host',      default='localhost')
-parser.add_argument('--port',      type=int, default=8123)
-parser.add_argument('--db',        default='procurement')
-parser.add_argument('--user',      default='procurement_user')
-parser.add_argument('--password',  default=os.environ.get('CLICKHOUSE_PASSWORD', 'changeme'))
+parser.add_argument('--dry-run',     action='store_true')
+parser.add_argument('--host',        default='localhost')
+parser.add_argument('--port',        type=int, default=8123)
+parser.add_argument('--db',          default='procurement')
+parser.add_argument('--user',        default='procurement_user')
+parser.add_argument('--password',    default=os.environ.get('CLICKHOUSE_PASSWORD', 'changeme'))
+parser.add_argument('--sqlite-path', default=None, help='Path to procurement.db (default: db/procurement.db)')
+parser.add_argument('--items-only',  action='store_true', help='Only re-migrate items table (skip users/vendors/PR/PO)')
 args = parser.parse_args()
 
 DRY_RUN   = args.dry_run
 CH_URL    = f"http://{args.host}:{args.port}"
 CH_DB     = args.db
 CH_AUTH   = (args.user, args.password)
-DB_PATH   = os.path.join(os.path.dirname(__file__), 'db', 'procurement.db')
+DB_PATH   = args.sqlite_path or os.path.join(os.path.dirname(__file__), 'db', 'procurement.db')
 TZ_JKT    = ZoneInfo('Asia/Jakarta')
 COMPANY_ID = 'PTMMI'  # PT Merge Mining Industri
 
@@ -274,7 +276,8 @@ def migrate_pr(conn, user_id_map):
         pr_uuid      = pr_uuid_map.get(r['pr_id'], '')
         qty_req      = r['qty_requested'] or r['qty'] or 0
         qty_app      = r['qty_approved'] or 0
-        est_price    = r['est_unit_price'] or r.get('estimated_unit_price') or 0
+        keys         = r.keys()
+        est_price    = r['est_unit_price'] or (r['estimated_unit_price'] if 'estimated_unit_price' in keys else None) or 0
         pri_inserts.append({
             'pr_item_id':             pr_item_uuid,
             'legacy_pr_item_id':      r['pr_item_id'],
@@ -346,8 +349,9 @@ def migrate_po(conn, pr_uuid_map, pr_item_uuid_map, vendor_id_map):
     for r in po_rows:
         search = ' '.join(filter(None, [r['po_number'], r['vendor_name'] or ''])).lower()
         # Tax: include_vat → tax line table handled separately
+        po_keys      = r.keys()
         include_vat  = r['include_vat'] or 0
-        pph_type     = r.get('pph_type') or ''
+        pph_type     = (r['pph_type'] if 'pph_type' in po_keys else None) or ''
         total        = r['total_amount'] or 0
         po_inserts.append({
             'po_id':                  po_uuid_map[r['po_id']],
@@ -355,7 +359,7 @@ def migrate_po(conn, pr_uuid_map, pr_item_uuid_map, vendor_id_map):
             'company_id':             COMPANY_ID,
             'po_number':              r['po_number'] or '',
             'primary_pr_id':          pr_uuid_map.get(r['pr_id'], '') if r['pr_id'] else '',
-            'vendor_id':              r.get('vendor_id') or '',
+            'vendor_id':              (r['vendor_id'] if 'vendor_id' in po_keys else None) or '',
             'vendor_name':            r['vendor_name'] or '',
             'po_date':                r['date_created'] or str(datetime.now().date()),
             'expected_delivery_date': None,
@@ -460,13 +464,17 @@ def main():
 
     conn = sqlite_connect()
 
-    print("Migrating:")
-    migrate_company()
-    user_id_map   = migrate_users(conn)
-    vendor_id_map = migrate_vendors(conn)
-    migrate_items(conn)
-    pr_uuid_map, pr_item_uuid_map = migrate_pr(conn, user_id_map)
-    migrate_po(conn, pr_uuid_map, pr_item_uuid_map, vendor_id_map)
+    if args.items_only:
+        print("Migrating (items only):")
+        migrate_items(conn)
+    else:
+        print("Migrating:")
+        migrate_company()
+        user_id_map   = migrate_users(conn)
+        vendor_id_map = migrate_vendors(conn)
+        migrate_items(conn)
+        pr_uuid_map, pr_item_uuid_map = migrate_pr(conn, user_id_map)
+        migrate_po(conn, pr_uuid_map, pr_item_uuid_map, vendor_id_map)
 
     conn.close()
 

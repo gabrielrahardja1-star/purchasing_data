@@ -171,6 +171,54 @@ def classify_category(name_cn: str, name_en: str, spec: str = "") -> str:
 # ─── Name / UOM parsing ───────────────────────────────────────────────────────
 CN_CHAR = re.compile(r'[\u4e00-\u9fff]')
 
+# Patterns that indicate a token is a spec/code, not an English name word.
+# A token matching any of these is discarded from name_en.
+_SPEC_TOKEN = re.compile(
+    r'^('
+    # Pure dimension: digits + unit (mm, cm, m, kw, rpm, mpa, etc.)
+    r'[\d.,]+\s*(mm|cm|mtr|m|kw|kva|rpm|mpa|bar|psi|kg|ton|inch|"|\')s?'
+    r'|'
+    # Dimension chain starting with digits: NNxNN, NN*NN, NN/NN
+    r'[\d.,]+\s*[x*×/]\s*[\d.,].*'
+    r'|'
+    # Bolt/thread sizes: M16*50, M16×50 (letter prefix + digits + separator + digits)
+    r'[A-Z]{1,2}[\d.,]+\s*[*×x]\s*[\d.,].*'
+    r'|'
+    # Dimension fragment starting with unit: mm*35mm, cm×10 (captured when leading digits split off)
+    r'(?:mm|cm|mtr|kg|m)\s*[*×x]\s*[\d.,].*'
+    r'|'
+    # Pure number or number+grade-suffix (e.g. 6205, 220#, 8#, 50%)
+    r'[\d.,]+[#%°]?$'
+    r'|'
+    # Part/model number: 1-4 ALL-CAPS letters immediately followed by digits (e.g. SCH40, DN65, PN16, P80)
+    r'[A-Z]{1,4}[\d][\w.\-/]*$'
+    r'|'
+    # Spec codes with letter-dash-number pattern: V-4.0aH, X-type product codes
+    r'[A-Z]-[\d][\w.\-/]*$'
+    r'|'
+    # Measurement codes starting with φ/Φ or Greek letters
+    r'[φΦΩ].*'
+    r')',
+    re.IGNORECASE
+)
+
+
+def _is_real_word(token: str) -> bool:
+    """
+    Return True if token should be kept in name_en — i.e. it is NOT a spec code.
+
+    Only two things are rejected:
+      1. Tokens that match _SPEC_TOKEN (dimensions, model codes, bolt sizes, part numbers)
+      2. Bare non-printing tokens (empty strings)
+
+    Everything else — real words, connectors (&, +), all-caps descriptions (FORWARD,
+    STOP), product grades (L-68, H-100), single-letter prefixes (W, T) — is kept.
+    """
+    stripped = token.strip()
+    if not stripped:
+        return False
+    return not _SPEC_TOKEN.match(stripped)
+
 
 def split_bilingual(name: str) -> tuple[str, str]:
     """
@@ -182,6 +230,9 @@ def split_bilingual(name: str) -> tuple[str, str]:
       'EN1 CN EN2'     → ('CN', 'EN1 EN2')   e.g. 'VRLA 电池 Lead Acid Battery'
       pure CN          → ('CN', '')
       pure EN          → ('', 'EN')
+
+    Spec tokens (dimensions, part numbers, model codes) are stripped from
+    name_en — they belong in the spec column, not the name.
     """
     if not name:
         return "", ""
@@ -195,10 +246,12 @@ def split_bilingual(name: str) -> tuple[str, str]:
     if has_cn and not has_en:
         return name, ""
     if has_en and not has_cn:
-        return "", name
+        # Pure EN string — apply same word-level spec filtering
+        words = name.split()
+        kept = [w for w in words if _is_real_word(w)]
+        return "", " ".join(kept)
 
     # Collect all contiguous CN runs and EN runs as separate pools.
-    # This correctly handles EN-CN, CN-EN, and EN-CN-EN layouts.
     cn_runs = re.findall(r'[\u4e00-\u9fff]+(?:\s*[\u4e00-\u9fff]+)*', name)
     en_runs = re.findall(
         r"[A-Za-z][A-Za-z0-9'\"\-\.\/\\*%()（）#@!,_&+:;°Φφ]*"
@@ -207,7 +260,17 @@ def split_bilingual(name: str) -> tuple[str, str]:
     )
 
     cn = " ".join(p.strip() for p in cn_runs if p.strip())
-    en = " ".join(p.strip() for p in en_runs if p.strip())
+
+    # Filter en_runs: split each run into words, keep only words that are
+    # real English words (not spec codes), then reassemble.
+    real_en_words = []
+    for run in en_runs:
+        words = run.split()
+        kept = [w for w in words if _is_real_word(w)]
+        if kept:
+            real_en_words.extend(kept)
+
+    en = " ".join(real_en_words)
     return cn, en
 
 
