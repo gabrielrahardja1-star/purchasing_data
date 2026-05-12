@@ -612,8 +612,14 @@ textarea.field-input{resize:vertical;min-height:70px}
           <div style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--faint)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
           </div>
-          <input type="text" id="itemMasterSearch" class="field-input" style="padding-left:36px" placeholder="Search items, EN/CN names, item ID…" oninput="filterItemMaster(this.value)"/>
+          <input type="text" id="itemMasterSearch" class="field-input" style="padding-left:36px" placeholder="Search items, EN/CN names, item ID…" oninput="applyItemMasterFilters()"/>
         </div>
+        <select id="imFilterCat" class="field-input" style="width:auto;min-width:140px" onchange="applyItemMasterFilters()">
+          <option value="">All Categories</option>
+        </select>
+        <select id="imFilterDept" class="field-input" style="width:auto;min-width:130px" onchange="applyItemMasterFilters()">
+          <option value="">All Depts</option>
+        </select>
         <button class="btn-primary" onclick="showAdminNewItemForm()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
           Add Item
@@ -669,7 +675,16 @@ textarea.field-input{resize:vertical;min-height:70px}
       <div class="surface">
         <table>
           <thead class="tbl-head">
-            <tr><th>Item ID</th><th>Name (EN)</th><th>Name (CN)</th><th>Spec</th><th>Category</th><th>UOM</th><th>Department</th><th></th></tr>
+            <tr>
+              <th onclick="sortItemMaster('item_id')" style="cursor:pointer;user-select:none;white-space:nowrap"><span id="imSort_item_id">Item ID ▲</span></th>
+              <th onclick="sortItemMaster('name_en')" style="cursor:pointer;user-select:none;white-space:nowrap"><span id="imSort_name_en">Name (EN)</span></th>
+              <th onclick="sortItemMaster('name_cn')" style="cursor:pointer;user-select:none;white-space:nowrap"><span id="imSort_name_cn">Name (CN)</span></th>
+              <th>Spec</th>
+              <th onclick="sortItemMaster('category')" style="cursor:pointer;user-select:none;white-space:nowrap"><span id="imSort_category">Category</span></th>
+              <th onclick="sortItemMaster('uom')" style="cursor:pointer;user-select:none;white-space:nowrap"><span id="imSort_uom">UOM</span></th>
+              <th onclick="sortItemMaster('department')" style="cursor:pointer;user-select:none;white-space:nowrap"><span id="imSort_department">Department</span></th>
+              <th></th>
+            </tr>
           </thead>
           <tbody id="adminItemTableBody"></tbody>
         </table>
@@ -853,6 +868,8 @@ let currentRole = 'requester';
 let prFilter = 'all';
 let allPRs = [];
 let allMasterItems = [];
+let itemSortCol = 'item_id', itemSortDir = 'asc';
+const IM_LABELS = {item_id:'Item ID',name_en:'Name (EN)',name_cn:'Name (CN)',category:'Category',uom:'UOM',department:'Department'};
 let bulkSelected = new Set();
 let currentUser = null;
 let prSearchTerm = '';
@@ -1936,17 +1953,52 @@ async function loadItemMaster() {
     document.getElementById('adminItemTableBody').innerHTML = `<tr><td colspan="8"><div class="msg msg-error">${error}</div></td></tr>`; return;
   }
   allMasterItems = items;
-  renderItemMasterTable(items);
+  // Populate filter dropdowns (preserve current selection)
+  const cats  = [...new Set(items.map(it => it.category_name||it.category||'').filter(Boolean))].sort();
+  const depts = [...new Set(items.map(it => it.department||'').filter(Boolean))].sort();
+  const catSel  = document.getElementById('imFilterCat');
+  const deptSel = document.getElementById('imFilterDept');
+  const prevCat = catSel.value, prevDept = deptSel.value;
+  catSel.innerHTML  = '<option value="">All Categories</option>' + cats.map(c  => `<option value="${c}">${c}</option>`).join('');
+  deptSel.innerHTML = '<option value="">All Depts</option>'      + depts.map(d => `<option value="${d}">${d}</option>`).join('');
+  catSel.value = prevCat; deptSel.value = prevDept;
+  applyItemMasterFilters();
 }
 
-function filterItemMaster(q) {
-  if (!q.trim()) { renderItemMasterTable(allMasterItems); return; }
-  const lower = q.toLowerCase();
-  renderItemMasterTable(allMasterItems.filter(it =>
-    (it.name_en||'').toLowerCase().includes(lower) ||
-    (it.name_cn||'').toLowerCase().includes(lower) ||
-    (it.item_id||'').toLowerCase().includes(lower)
-  ));
+function filterItemMaster() { applyItemMasterFilters(); }
+
+function sortItemMaster(col) {
+  itemSortDir = (itemSortCol === col && itemSortDir === 'asc') ? 'desc' : 'asc';
+  itemSortCol = col;
+  applyItemMasterFilters();
+}
+
+function applyItemMasterFilters() {
+  const q    = (document.getElementById('itemMasterSearch').value || '').toLowerCase().trim();
+  const cat  = document.getElementById('imFilterCat').value;
+  const dept = document.getElementById('imFilterDept').value;
+  let items  = allMasterItems;
+  if (q)    items = items.filter(it =>
+    (it.name_en||'').toLowerCase().includes(q) ||
+    (it.name_cn||'').toLowerCase().includes(q) ||
+    (it.item_id||'').toLowerCase().includes(q) ||
+    (it.spec||'').toLowerCase().includes(q)
+  );
+  if (cat)  items = items.filter(it => (it.category_name||it.category||'') === cat);
+  if (dept) items = items.filter(it => (it.department||'') === dept);
+  const dir = itemSortDir === 'asc' ? 1 : -1;
+  items = [...items].sort((a, b) => {
+    const av = (a[itemSortCol]||'').toString().toLowerCase();
+    const bv = (b[itemSortCol]||'').toString().toLowerCase();
+    return av < bv ? -dir : av > bv ? dir : 0;
+  });
+  // Update sort indicators
+  Object.keys(IM_LABELS).forEach(col => {
+    const el = document.getElementById('imSort_' + col);
+    if (!el) return;
+    el.textContent = IM_LABELS[col] + (col === itemSortCol ? (itemSortDir === 'asc' ? ' ▲' : ' ▼') : '');
+  });
+  renderItemMasterTable(items);
 }
 
 function renderItemMasterTable(items) {
