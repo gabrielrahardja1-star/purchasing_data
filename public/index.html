@@ -1646,34 +1646,64 @@ async function loadMDPOApprovals() {
   const wrap = document.getElementById('mdPoList');
   const msgEl = document.getElementById('mdPoMsg');
   wrap.innerHTML = '<em style="color:var(--faint);font-size:13px">Loading…</em>';
-  const { ok, data: pos, error } = await apiFetch('/api/po?status=pending_approval');
+  const { ok, data: pos, error } = await apiFetch('/api/po');
   if (!ok) { wrap.innerHTML = `<div class="msg msg-error">${error}</div>`; return; }
   const pending = pos.filter(p => p.status === 'pending_approval');
   if (!pending.length) {
     wrap.innerHTML = '<div style="color:var(--faint);font-size:13px;padding:16px 0">No POs awaiting approval.</div>';
     return;
   }
-  wrap.innerHTML = pending.map(po => `
+  // Fetch full details for each pending PO (to get line items + unit prices)
+  const details = await Promise.all(pending.map(po =>
+    apiFetch(`/api/po/${po.po_id}`).then(r => r.ok ? r.data : null)
+  ));
+  wrap.innerHTML = details.filter(Boolean).map(po => {
+    const lineRows = (po.line_items || []).map(it => `
+      <tr>
+        <td style="font-size:13px;padding:8px 10px">
+          <div style="font-weight:500">${escHtml(it.name_en || '')}</div>
+          ${it.name_cn ? `<div style="font-size:11px;color:var(--faint)">${escHtml(it.name_cn)}</div>` : ''}
+        </td>
+        <td style="font-size:13px;padding:8px 10px;white-space:nowrap">${it.qty} ${escHtml(it.uom || '')}</td>
+        <td style="font-family:var(--mono);font-size:13px;padding:8px 10px;white-space:nowrap">${fmtMoney(it.unit_price)}</td>
+        <td style="font-family:var(--mono);font-size:13px;padding:8px 10px;text-align:right;white-space:nowrap;font-weight:600">${fmtMoney(it.total_price)}</td>
+        <td style="font-size:11px;color:var(--faint);padding:8px 10px;font-family:var(--mono)">${escHtml(it.pr_number || '—')}</td>
+      </tr>`).join('');
+    const po_id = po.po_id ?? po.legacy_po_id;
+    return `
     <div class="surface" style="margin-bottom:14px;padding:18px 20px">
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px">
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:13px">${po.po_number} — ${escHtml(po.vendor_name)}</div>
-          <div style="font-size:12px;color:var(--dim);margin-top:2px">${po.date_created} · ${fmtMoney(po.total_amount)}</div>
+          <div style="font-weight:700;font-size:14px">${escHtml(po.po_number)} <span style="font-weight:400;color:var(--dim)">—</span> <span style="font-weight:600">${escHtml(po.vendor_name || '—')}</span></div>
+          <div style="font-size:12px;color:var(--dim);margin-top:3px">${po.date_created} · Total: <strong>${fmtMoney(po.total_amount)}</strong></div>
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0">
-          <button class="btn-primary btn-sm" onclick="approvePO(${po.po_id})">Approve</button>
-          <button class="btn-delete btn-sm" onclick="showPORejectForm(${po.po_id})">Reject</button>
+          <button class="btn-primary btn-sm" onclick="approvePO(${po_id})">Approve</button>
+          <button class="btn-delete btn-sm" onclick="showPORejectForm(${po_id})">Reject</button>
         </div>
       </div>
-      <div id="po-reject-form-${po.po_id}" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border)">
+            <th style="text-align:left;padding:6px 10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)">Item</th>
+            <th style="text-align:left;padding:6px 10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)">Qty</th>
+            <th style="text-align:left;padding:6px 10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)">Unit Price</th>
+            <th style="text-align:right;padding:6px 10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)">Line Total</th>
+            <th style="text-align:left;padding:6px 10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)">Source PR</th>
+          </tr>
+        </thead>
+        <tbody>${lineRows}</tbody>
+      </table>
+      <div id="po-reject-form-${po_id}" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
         <label class="field-label">Rejection Note *</label>
-        <textarea id="po-reject-note-${po.po_id}" class="field-input" rows="2" placeholder="Reason for rejection…" style="margin-bottom:8px"></textarea>
+        <textarea id="po-reject-note-${po_id}" class="field-input" rows="2" placeholder="Reason for rejection…" style="margin-bottom:8px"></textarea>
         <div style="display:flex;gap:8px">
-          <button class="btn-delete btn-sm" onclick="confirmRejectPO(${po.po_id})">Confirm Reject</button>
-          <button class="btn-outline btn-sm" onclick="hidePORejectForm(${po.po_id})">Cancel</button>
+          <button class="btn-delete btn-sm" onclick="confirmRejectPO(${po_id})">Confirm Reject</button>
+          <button class="btn-outline btn-sm" onclick="hidePORejectForm(${po_id})">Cancel</button>
         </div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function showPORejectForm(po_id) {
