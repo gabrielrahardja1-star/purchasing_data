@@ -127,6 +127,8 @@ nav{display:flex;flex-direction:column;gap:2px}
 .pill-unfulfilled .pill-dot{background:#94A0B5}
 .pill-pending_pricing{background:rgba(94,108,132,.10);color:#5A6A82}
 .pill-pending_pricing .pill-dot{background:#94A0B5}
+.pill-pending_approval{background:rgba(217,119,6,.10);color:#B45309}
+.pill-pending_approval .pill-dot{background:#D97706}
 
 /* ── Filter pills ── */
 .filter-pills{display:flex;align-items:center;gap:6px;margin-bottom:18px}
@@ -455,6 +457,7 @@ textarea.field-input{resize:vertical;min-height:70px}
 
     <!-- ── Approvals ── -->
     <div id="page-approvals" class="page">
+      <!-- PR Approvals -->
       <div id="mdMsg"></div>
       <div id="bulkBar" style="display:none" class="bulk-bar">
         <span style="font-weight:700;font-size:13px" id="bulkCount">0 selected</span>
@@ -464,6 +467,13 @@ textarea.field-input{resize:vertical;min-height:70px}
         <button onclick="clearBulk()" style="color:#fff;font-size:12px;font-weight:600;padding:7px 10px">Clear</button>
       </div>
       <div id="mdPrList"></div>
+
+      <!-- PO Approvals -->
+      <div style="margin-top:36px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:12px">PO Approvals</div>
+        <div id="mdPoMsg"></div>
+        <div id="mdPoList"></div>
+      </div>
     </div>
 
     <!-- ── Create PR ── -->
@@ -898,12 +908,13 @@ function escHtml(s) {
 // ── Status pill ────────────────────────────────────────────────────────────────
 function statusPill(s) {
   const map = {
-    pending_pricing: ['pill-pending_pricing','Pending Pricing'],
-    pending:  ['pill-pending','Pending Approval'],
-    approved: ['pill-approved','Approved'],
-    rejected: ['pill-rejected','Rejected'],
-    draft:    ['pill-draft','Draft'],
-    sent:     ['pill-sent','Sent'],
+    pending_pricing:  ['pill-pending_pricing', 'Pending Pricing'],
+    pending:          ['pill-pending',          'Pending'],
+    pending_approval: ['pill-pending_approval', 'Pending PO Approval'],
+    approved:         ['pill-approved',         'Approved'],
+    rejected:         ['pill-rejected',         'Rejected'],
+    draft:            ['pill-draft',            'Draft'],
+    sent:             ['pill-sent',             'Sent'],
   };
   const [cls, label] = map[s] || ['pill-draft', s];
   return `<span class="pill ${cls}"><span class="pill-dot"></span>${label}</span>`;
@@ -975,7 +986,7 @@ function navTo(page) {
   if (page === 'myPRs')        loadMyPRs();
   if (page === 'poList')       loadPOList();
   if (page === 'createPO')     loadCreatePO();
-  if (page === 'approvals')    loadMDView();
+  if (page === 'approvals')    { loadMDView(); loadMDPOApprovals(); }
   if (page === 'itemMaster')   { loadItemMaster(); loadUserManagement(); }
   if (page === 'createPR')     renderSummary();
   renderPipelinePreview();
@@ -1581,9 +1592,10 @@ async function loadPOList() {
       <td class="text-dim" style="font-family:var(--mono);font-size:12px">${po.date_created}</td>
       <td class="serif-num">${fmtMoney(po.total_amount)}</td>
       <td>${statusPill(po.status)}</td>
-      <td style="text-align:right;display:flex;gap:6px;justify-content:flex-end">
+      <td style="text-align:right;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">
         <button class="btn-outline" onclick="event.stopPropagation();window.open('/api/po/${po.po_id}/print','_blank')" title="Print / Save as PDF">Print PDF ↗</button>
-        <button class="btn-outline" onclick="event.stopPropagation();exportGL(${po.po_id},'${po.po_number}')">Export GL ↓</button>
+        ${po.status === 'approved' ? `<button class="btn-outline" onclick="event.stopPropagation();exportGL(${po.po_id},'${po.po_number}')">Export GL ↓</button>` : ''}
+        ${po.status === 'rejected' && (currentRole === 'purchasing' || currentRole === 'admin') ? `<button class="btn-primary btn-sm" onclick="event.stopPropagation();resubmitPO(${po.po_id})">Resubmit</button>` : ''}
         ${currentRole === 'admin' ? `<button class="btn-delete btn-sm" onclick="event.stopPropagation();adminDeletePO(${po.po_id},'${po.po_number}')">Delete</button>` : ''}
       </td>
     </tr>
@@ -1617,6 +1629,7 @@ async function togglePODetail(po_id) {
     </tr>`).join('');
 
   detail.innerHTML = `
+    ${po.status === 'rejected' && po.notes ? `<div class="msg msg-error" style="margin-bottom:10px"><strong>Rejection note:</strong> ${escHtml(po.notes)}</div>` : ''}
     <table class="pr-expand-table">
       <thead>
         <tr>
@@ -1625,6 +1638,78 @@ async function togglePODetail(po_id) {
       </thead>
       <tbody>${rows}</tbody>
     </table>`;
+}
+
+// ── PO Approval (MD view) ──────────────────────────────────────────────────────
+async function loadMDPOApprovals() {
+  const wrap = document.getElementById('mdPoList');
+  const msgEl = document.getElementById('mdPoMsg');
+  wrap.innerHTML = '<em style="color:var(--faint);font-size:13px">Loading…</em>';
+  const { ok, data: pos, error } = await apiFetch('/api/po?status=pending_approval');
+  if (!ok) { wrap.innerHTML = `<div class="msg msg-error">${error}</div>`; return; }
+  const pending = pos.filter(p => p.status === 'pending_approval');
+  if (!pending.length) {
+    wrap.innerHTML = '<div style="color:var(--faint);font-size:13px;padding:16px 0">No POs awaiting approval.</div>';
+    return;
+  }
+  wrap.innerHTML = pending.map(po => `
+    <div class="surface" style="margin-bottom:14px;padding:18px 20px">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:13px">${po.po_number} — ${escHtml(po.vendor_name)}</div>
+          <div style="font-size:12px;color:var(--dim);margin-top:2px">${po.date_created} · ${fmtMoney(po.total_amount)}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0">
+          <button class="btn-primary btn-sm" onclick="approvePO(${po.po_id})">Approve</button>
+          <button class="btn-delete btn-sm" onclick="showPORejectForm(${po.po_id})">Reject</button>
+        </div>
+      </div>
+      <div id="po-reject-form-${po.po_id}" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
+        <label class="field-label">Rejection Note *</label>
+        <textarea id="po-reject-note-${po.po_id}" class="field-input" rows="2" placeholder="Reason for rejection…" style="margin-bottom:8px"></textarea>
+        <div style="display:flex;gap:8px">
+          <button class="btn-delete btn-sm" onclick="confirmRejectPO(${po.po_id})">Confirm Reject</button>
+          <button class="btn-outline btn-sm" onclick="hidePORejectForm(${po.po_id})">Cancel</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function showPORejectForm(po_id) {
+  document.getElementById(`po-reject-form-${po_id}`).style.display = '';
+}
+function hidePORejectForm(po_id) {
+  document.getElementById(`po-reject-form-${po_id}`).style.display = 'none';
+}
+
+async function approvePO(po_id) {
+  const msgEl = document.getElementById('mdPoMsg');
+  msgEl.innerHTML = '';
+  const { ok, error } = await apiFetch(`/api/po/${po_id}/approve`, { method: 'POST' });
+  if (!ok) { msgEl.innerHTML = `<div class="msg msg-error">${error}</div>`; return; }
+  msgEl.innerHTML = '<div class="msg msg-success">PO approved.</div>';
+  loadMDPOApprovals();
+}
+
+async function confirmRejectPO(po_id) {
+  const note = (document.getElementById(`po-reject-note-${po_id}`)?.value || '').trim();
+  const msgEl = document.getElementById('mdPoMsg');
+  if (!note) { msgEl.innerHTML = '<div class="msg msg-error">Rejection note is required.</div>'; return; }
+  msgEl.innerHTML = '';
+  const { ok, error } = await apiFetch(`/api/po/${po_id}/reject`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ notes: note })
+  });
+  if (!ok) { msgEl.innerHTML = `<div class="msg msg-error">${error}</div>`; return; }
+  msgEl.innerHTML = '<div class="msg msg-success">PO rejected.</div>';
+  loadMDPOApprovals();
+}
+
+async function resubmitPO(po_id) {
+  if (!confirm('Resubmit this PO for approval?')) return;
+  const { ok, error } = await apiFetch(`/api/po/${po_id}/resubmit`, { method: 'POST' });
+  if (!ok) { alert(`Error: ${error}`); return; }
+  loadPOList();
 }
 
 async function exportGL(po_id, po_number) {

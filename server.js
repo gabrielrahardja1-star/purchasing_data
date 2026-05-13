@@ -540,7 +540,7 @@ app.post('/api/po', requireRole('purchasing', 'admin'), async (req, res) => {
       po_number, primary_pr_id, vendor_id: '', vendor_name,
       po_date: today(), expected_delivery_date: null,
       currency: 'IDR', exchange_rate: 1, payment_term_id: '',
-      status: 'draft', subtotal_amount: subtotal, discount_amount: 0,
+      status: 'pending_approval', subtotal_amount: subtotal, discount_amount: 0,
       tax_amount: vat_amount, withholding_amount: pph_amount, total_amount,
       notes: '', search_text: `${po_number} ${vendor_name}`.toLowerCase(),
       created_by_user_id: req.session.user ? String(req.session.user.id) : '',
@@ -570,6 +570,73 @@ app.post('/api/po', requireRole('purchasing', 'admin'), async (req, res) => {
     }
     await ch.insert('purchase_order_items', poItemRows);
     res.json({ po_id: legacy_po_id, po_number });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── PO Approval routes ────────────────────────────────────────────────────────
+app.post('/api/po/:id/approve', requireRole('md', 'admin'), async (req, res) => {
+  try {
+    const pos = await ch.query(
+      `SELECT * FROM purchase_orders FINAL WHERE legacy_po_id = {id:Int64} AND is_deleted = 0 LIMIT 1`,
+      { id: req.params.id }
+    );
+    if (!pos.length) return res.status(404).json({ error: 'PO not found' });
+    const po = pos[0];
+    if (po.status !== 'pending_approval')
+      return res.status(400).json({ error: `Cannot approve a PO with status: ${po.status}` });
+    const now = ch.nowTs(); const ver = Number(ch.version());
+    await ch.insert('purchase_orders', [{ ...po, status: 'approved', notes: po.notes, version: ver, updated_at: now }]);
+    await ch.insert('approval_actions', [{
+      approval_action_id: ch.newUUID(), company_id: ch.COMPANY_ID,
+      document_type: 'PO', document_id: po.po_id, document_item_id: '',
+      workflow_id: '', step_no: 0, actor_user_id: '',
+      actor_name: req.session.user?.full_name || req.session.user?.username || '',
+      action: 'approved', action_at: now, from_status: po.status, to_status: 'approved',
+      approved_qty: null, notes: '',
+    }]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/po/:id/reject', requireRole('md', 'admin'), async (req, res) => {
+  try {
+    const { notes } = req.body;
+    if (!notes?.trim()) return res.status(400).json({ error: 'Rejection note is required' });
+    const pos = await ch.query(
+      `SELECT * FROM purchase_orders FINAL WHERE legacy_po_id = {id:Int64} AND is_deleted = 0 LIMIT 1`,
+      { id: req.params.id }
+    );
+    if (!pos.length) return res.status(404).json({ error: 'PO not found' });
+    const po = pos[0];
+    if (po.status !== 'pending_approval')
+      return res.status(400).json({ error: `Cannot reject a PO with status: ${po.status}` });
+    const now = ch.nowTs(); const ver = Number(ch.version());
+    await ch.insert('purchase_orders', [{ ...po, status: 'rejected', notes: notes.trim(), version: ver, updated_at: now }]);
+    await ch.insert('approval_actions', [{
+      approval_action_id: ch.newUUID(), company_id: ch.COMPANY_ID,
+      document_type: 'PO', document_id: po.po_id, document_item_id: '',
+      workflow_id: '', step_no: 0, actor_user_id: '',
+      actor_name: req.session.user?.full_name || req.session.user?.username || '',
+      action: 'rejected', action_at: now, from_status: po.status, to_status: 'rejected',
+      approved_qty: null, notes: notes.trim(),
+    }]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/po/:id/resubmit', requireRole('purchasing', 'admin'), async (req, res) => {
+  try {
+    const pos = await ch.query(
+      `SELECT * FROM purchase_orders FINAL WHERE legacy_po_id = {id:Int64} AND is_deleted = 0 LIMIT 1`,
+      { id: req.params.id }
+    );
+    if (!pos.length) return res.status(404).json({ error: 'PO not found' });
+    const po = pos[0];
+    if (po.status !== 'rejected')
+      return res.status(400).json({ error: `Can only resubmit rejected POs` });
+    const now = ch.nowTs(); const ver = Number(ch.version());
+    await ch.insert('purchase_orders', [{ ...po, status: 'pending_approval', notes: '', version: ver, updated_at: now }]);
+    res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -789,6 +856,8 @@ app.get('/api/po/:id/export', requireAuth, async (req, res) => {
     );
     if (!pos.length) return res.status(404).json({ error: 'Not found' });
     const po = pos[0];
+    if (po.status !== 'approved')
+      return res.status(400).json({ error: 'GL export is only available for approved POs' });
 
     const lineItems = await ch.query(
       `SELECT poi.po_item_id, poi.item_id, poi.ordered_qty, poi.unit_price, poi.total_price,
