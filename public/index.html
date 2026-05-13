@@ -1441,13 +1441,14 @@ function renderCreatePOItems() {
 }
 
 function toggleCPOItem(pr_item_id) {
-  const cb  = document.getElementById(`cpo-check-${pr_item_id}`);
-  const qty = document.getElementById(`cpo-qty-${pr_item_id}`);
+  const id  = String(pr_item_id);
+  const cb  = document.getElementById(`cpo-check-${id}`);
+  const qty = document.getElementById(`cpo-qty-${id}`);
   if (cb.checked) {
-    createPOSelected.add(pr_item_id);
+    createPOSelected.add(id);
     qty.disabled = false;
   } else {
-    createPOSelected.delete(pr_item_id);
+    createPOSelected.delete(id);
     qty.disabled = true;
   }
   updateCreatePOSummary();
@@ -1473,7 +1474,7 @@ function openCPOBulkModal() {
   document.getElementById('cpoBulkPPHType').value = '';
   // Render selected items into modal table
   const body = document.getElementById('cpoBulkItemsBody');
-  const selectedItems = createPOItems.filter(it => createPOSelected.has(it.pr_item_id));
+  const selectedItems = createPOItems.filter(it => createPOSelected.has(String(it.pr_item_id)));
   body.innerHTML = selectedItems.map(it => {
     const qty = parseFloat(document.getElementById(`cpo-qty-${it.pr_item_id}`)?.value) || (it.qty_approved ?? it.qty_requested);
     return `<tr class="tbl-row">
@@ -1502,7 +1503,7 @@ function closeCPOBulkModal() {
 }
 
 function updateCPOBulkSummary() {
-  const selectedItems = createPOItems.filter(it => createPOSelected.has(it.pr_item_id));
+  const selectedItems = createPOItems.filter(it => createPOSelected.has(String(it.pr_item_id)));
   let subtotal = 0;
   selectedItems.forEach(it => {
     const price = parseFloat(document.getElementById(`cbulk-price-${it.pr_item_id}`)?.value) || 0;
@@ -1532,7 +1533,7 @@ async function submitCPOBulk() {
   const vendor_name = document.getElementById('poVendorName').value.trim();
   if (!vendor_name) { msgEl.innerHTML = '<div class="msg msg-error">Vendor name is required.</div>'; return; }
 
-  const selectedItems = createPOItems.filter(it => createPOSelected.has(it.pr_item_id));
+  const selectedItems = createPOItems.filter(it => createPOSelected.has(String(it.pr_item_id)));
   const items = [];
   for (const it of selectedItems) {
     const unit_price  = parseFloat(document.getElementById(`cbulk-price-${it.pr_item_id}`)?.value);
