@@ -617,9 +617,6 @@ textarea.field-input{resize:vertical;min-height:70px}
         <select id="imFilterCat" class="field-input" style="width:auto;min-width:140px" onchange="applyItemMasterFilters()">
           <option value="">All Categories</option>
         </select>
-        <select id="imFilterDept" class="field-input" style="width:auto;min-width:130px" onchange="applyItemMasterFilters()">
-          <option value="">All Depts</option>
-        </select>
         <button class="btn-primary" onclick="showAdminNewItemForm()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
           Add Item
@@ -661,10 +658,6 @@ textarea.field-input{resize:vertical;min-height:70px}
             <label class="field-label">UOM</label>
             <input type="text" id="ani_uom" class="field-input" placeholder="pcs, kg, set…" list="uomList"/>
           </div>
-          <div>
-            <label class="field-label">Department</label>
-            <select id="ani_dept" class="field-input"><option value="">— select —</option></select>
-          </div>
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn-primary btn-sm" onclick="adminSaveNewItem()">Save Item</button>
@@ -682,7 +675,6 @@ textarea.field-input{resize:vertical;min-height:70px}
               <th>Spec</th>
               <th onclick="sortItemMaster('category')" style="cursor:pointer;user-select:none;white-space:nowrap"><span id="imSort_category">Category</span></th>
               <th onclick="sortItemMaster('uom')" style="cursor:pointer;user-select:none;white-space:nowrap"><span id="imSort_uom">UOM</span></th>
-              <th onclick="sortItemMaster('department')" style="cursor:pointer;user-select:none;white-space:nowrap"><span id="imSort_department">Department</span></th>
               <th></th>
             </tr>
           </thead>
@@ -869,7 +861,7 @@ let prFilter = 'all';
 let allPRs = [];
 let allMasterItems = [];
 let itemSortCol = 'item_id', itemSortDir = 'asc';
-const IM_LABELS = {item_id:'Item ID',name_en:'Name (EN)',name_cn:'Name (CN)',category:'Category',uom:'UOM',department:'Department'};
+const IM_LABELS = {item_id:'Item ID',name_en:'Name (EN)',name_cn:'Name (CN)',category:'Category',uom:'UOM'};
 let bulkSelected = new Set();
 let currentUser = null;
 let prSearchTerm = '';
@@ -1950,18 +1942,15 @@ let adminSimilarTimer = null;
 async function loadItemMaster() {
   const { ok, data: items, error } = await apiFetch('/api/items');
   if (!ok) {
-    document.getElementById('adminItemTableBody').innerHTML = `<tr><td colspan="8"><div class="msg msg-error">${error}</div></td></tr>`; return;
+    document.getElementById('adminItemTableBody').innerHTML = `<tr><td colspan="7"><div class="msg msg-error">${error}</div></td></tr>`; return;
   }
   allMasterItems = items;
-  // Populate filter dropdowns (preserve current selection)
-  const cats  = [...new Set(items.map(it => it.category_name||it.category||'').filter(Boolean))].sort();
-  const depts = [...new Set(items.map(it => it.department||'').filter(Boolean))].sort();
-  const catSel  = document.getElementById('imFilterCat');
-  const deptSel = document.getElementById('imFilterDept');
-  const prevCat = catSel.value, prevDept = deptSel.value;
-  catSel.innerHTML  = '<option value="">All Categories</option>' + cats.map(c  => `<option value="${c}">${c}</option>`).join('');
-  deptSel.innerHTML = '<option value="">All Depts</option>'      + depts.map(d => `<option value="${d}">${d}</option>`).join('');
-  catSel.value = prevCat; deptSel.value = prevDept;
+  // Populate category filter dropdown (preserve current selection)
+  const cats = [...new Set(items.map(it => it.category_name||it.category||'').filter(Boolean))].sort();
+  const catSel = document.getElementById('imFilterCat');
+  const prevCat = catSel.value;
+  catSel.innerHTML = '<option value="">All Categories</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('');
+  catSel.value = prevCat;
   applyItemMasterFilters();
 }
 
@@ -1974,18 +1963,16 @@ function sortItemMaster(col) {
 }
 
 function applyItemMasterFilters() {
-  const q    = (document.getElementById('itemMasterSearch').value || '').toLowerCase().trim();
-  const cat  = document.getElementById('imFilterCat').value;
-  const dept = document.getElementById('imFilterDept').value;
-  let items  = allMasterItems;
-  if (q)    items = items.filter(it =>
+  const q   = (document.getElementById('itemMasterSearch').value || '').toLowerCase().trim();
+  const cat = document.getElementById('imFilterCat').value;
+  let items = allMasterItems;
+  if (q)   items = items.filter(it =>
     (it.name_en||'').toLowerCase().includes(q) ||
     (it.name_cn||'').toLowerCase().includes(q) ||
     (it.item_id||'').toLowerCase().includes(q) ||
     (it.spec||'').toLowerCase().includes(q)
   );
-  if (cat)  items = items.filter(it => (it.category_name||it.category||'') === cat);
-  if (dept) items = items.filter(it => (it.department||'') === dept);
+  if (cat) items = items.filter(it => (it.category_name||it.category||'') === cat);
   const dir = itemSortDir === 'asc' ? 1 : -1;
   items = [...items].sort((a, b) => {
     const av = (a[itemSortCol]||'').toString().toLowerCase();
@@ -2011,9 +1998,8 @@ function renderItemMasterTable(items) {
       <td class="text-dim" style="font-family:var(--mono);font-size:11px">${it.spec||''}</td>
       <td class="text-dim">${it.category_name||it.category||''}</td>
       <td class="text-dim">${it.uom||''}</td>
-      <td class="text-dim">${it.department||''}</td>
       <td style="text-align:right"><button class="btn-delete btn-sm" onclick="adminDeleteItem('${it.item_id}')">Delete</button></td>
-    </tr>`).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--faint);padding:40px">No items found.</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:40px">No items found.</td></tr>`;
 }
 
 function showAdminNewItemForm() {
@@ -2026,7 +2012,6 @@ function hideAdminNewItemForm() {
   document.getElementById('adminSimilarWarn').style.display = 'none';
   ['ani_name_en','ani_name_cn','ani_uom'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('ani_category').value = '';
-  document.getElementById('ani_dept').value = '';
   document.getElementById('adminConfirmNew').checked = false;
 }
 
@@ -2053,7 +2038,6 @@ async function adminSaveNewItem() {
   const name_cn  = document.getElementById('ani_name_cn').value.trim();
   const category = document.getElementById('ani_category').value;
   const uom      = document.getElementById('ani_uom').value.trim();
-  const dept     = document.getElementById('ani_dept').value;
   const msgEl    = document.getElementById('adminItemMsg');
   if (!name_en) { msgEl.innerHTML = '<div class="msg msg-error">English name is required.</div>'; return; }
   const warnVisible = document.getElementById('adminSimilarWarn').style.display !== 'none';
@@ -2062,7 +2046,7 @@ async function adminSaveNewItem() {
   }
   const { ok, data, error } = await apiFetch('/api/items', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name_en, name_cn, category, uom, department: dept })
+    body: JSON.stringify({ name_en, name_cn, category, uom })
   });
   if (!ok) { msgEl.innerHTML = `<div class="msg msg-error">${error}</div>`; return; }
   msgEl.innerHTML = `<div class="msg msg-success">Item <strong>${data.item_id}</strong> added successfully.</div>`;
@@ -2133,8 +2117,6 @@ async function loadDepartments() {
   const { ok, data } = await apiFetch('/api/items/departments');
   if (!ok) return;
   allDepartments = data;
-  const sel = document.getElementById('ani_dept');
-  if (sel) data.forEach(d => { const o = document.createElement('option'); o.value = o.textContent = d; sel.appendChild(o); });
 }
 
 async function loadUOMList() {
