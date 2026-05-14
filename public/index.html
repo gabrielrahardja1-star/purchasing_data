@@ -871,6 +871,7 @@ let currentRole = 'requester';
 let prFilter = 'all';
 let allPRs = [];
 let allMasterItems = [];
+let _itemMap = {}; // item_id → item object for edit modal lookup
 let itemSortCol = 'item_id', itemSortDir = 'asc';
 const IM_LABELS = {item_id:'Item ID',name_en:'Name (EN)',name_cn:'Name (CN)',category:'Category',uom:'UOM'};
 let bulkSelected = new Set();
@@ -2062,6 +2063,7 @@ async function loadItemMaster() {
     document.getElementById('adminItemTableBody').innerHTML = `<tr><td colspan="7"><div class="msg msg-error">${error}</div></td></tr>`; return;
   }
   allMasterItems = items;
+  _itemMap = Object.fromEntries(items.map(it => [it.item_id, it]));
   // Populate category filter dropdown (preserve current selection)
   const cats = [...new Set(items.map(it => it.category_name||it.category||'').filter(Boolean))].sort();
   const catSel = document.getElementById('imFilterCat');
@@ -2116,7 +2118,7 @@ function renderItemMasterTable(items) {
       <td class="text-dim">${it.category_name||it.category||''}</td>
       <td class="text-dim">${it.uom||''}</td>
       <td style="text-align:right;white-space:nowrap;display:flex;gap:6px;justify-content:flex-end">
-        <button class="btn-outline btn-sm" onclick="openEditItemModal(${JSON.stringify(it).replace(/'/g,'&#39;')})">Edit</button>
+        <button class="btn-outline btn-sm" onclick="openEditItemModal('${it.item_id}')">Edit</button>
         <button class="btn-delete btn-sm" onclick="adminDeleteItem('${it.item_id}')">Delete</button>
       </td>
     </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:40px">No items found.</td></tr>`;
@@ -2320,7 +2322,9 @@ function initApp() {
   }
 })();
 // ── Edit Item Modal ────────────────────────────────────────────────────────────
-function openEditItemModal(it) {
+function openEditItemModal(item_id) {
+  const it = _itemMap[item_id];
+  if (!it) return;
   document.getElementById('editItemMsg').innerHTML = '';
   document.getElementById('eit_item_id').value   = it.item_id;
   document.getElementById('eit_name_en').value   = it.name_en || '';
