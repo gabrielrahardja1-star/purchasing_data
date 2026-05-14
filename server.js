@@ -158,6 +158,28 @@ app.post('/api/items', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.put('/api/items/:id', requireRole('admin'), async (req, res) => {
+  try {
+    const rows = await ch.query(
+      `SELECT * FROM items FINAL WHERE item_id = {id:String} AND is_deleted = 0 LIMIT 1`,
+      { id: req.params.id }
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Item not found' });
+    const { name_en, name_cn, category, spec, uom } = req.body;
+    if (!name_en) return res.status(400).json({ error: 'name_en required' });
+    const now = ch.nowTs(); const ver = Number(ch.version());
+    await ch.insert('items', [{
+      ...rows[0],
+      name_en: name_en || '', name_cn: name_cn || '',
+      category_name: category || '', spec: spec || '', uom: uom || rows[0].uom,
+      search_text: `${name_en} ${name_cn || ''} ${category || ''}`.toLowerCase(),
+      version: ver, updated_at: now,
+    }]);
+    await rebuildFuse();
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.delete('/api/items/:id', requireRole('admin'), async (req, res) => {
   try {
     const rows = await ch.query(

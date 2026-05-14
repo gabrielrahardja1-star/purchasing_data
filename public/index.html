@@ -627,6 +627,7 @@ textarea.field-input{resize:vertical;min-height:70px}
         <select id="imFilterCat" class="field-input" style="width:auto;min-width:140px" onchange="applyItemMasterFilters()">
           <option value="">All Categories</option>
         </select>
+        <button class="btn-outline" onclick="exportItemMasterCSV()">Export CSV ↓</button>
         <button class="btn-primary" onclick="showAdminNewItemForm()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
           Add Item
@@ -2114,7 +2115,10 @@ function renderItemMasterTable(items) {
       <td class="text-dim" style="font-family:var(--mono);font-size:11px">${it.spec||''}</td>
       <td class="text-dim">${it.category_name||it.category||''}</td>
       <td class="text-dim">${it.uom||''}</td>
-      <td style="text-align:right"><button class="btn-delete btn-sm" onclick="adminDeleteItem('${it.item_id}')">Delete</button></td>
+      <td style="text-align:right;white-space:nowrap;display:flex;gap:6px;justify-content:flex-end">
+        <button class="btn-outline btn-sm" onclick="openEditItemModal(${JSON.stringify(it).replace(/'/g,'&#39;')})">Edit</button>
+        <button class="btn-delete btn-sm" onclick="adminDeleteItem('${it.item_id}')">Delete</button>
+      </td>
     </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:40px">No items found.</td></tr>`;
 }
 
@@ -2315,6 +2319,106 @@ function initApp() {
     showLoginScreen();
   }
 })();
+// ── Edit Item Modal ────────────────────────────────────────────────────────────
+function openEditItemModal(it) {
+  document.getElementById('editItemMsg').innerHTML = '';
+  document.getElementById('eit_item_id').value   = it.item_id;
+  document.getElementById('eit_name_en').value   = it.name_en || '';
+  document.getElementById('eit_name_cn').value   = it.name_cn || '';
+  document.getElementById('eit_spec').value      = it.spec || '';
+  document.getElementById('eit_category').value  = it.category_name || it.category || '';
+  document.getElementById('eit_uom').value       = it.uom || '';
+  document.getElementById('editItemModal').classList.add('open');
+}
+
+function closeEditItemModal() {
+  document.getElementById('editItemModal').classList.remove('open');
+}
+
+async function saveEditItem() {
+  const item_id  = document.getElementById('eit_item_id').value;
+  const name_en  = document.getElementById('eit_name_en').value.trim();
+  const name_cn  = document.getElementById('eit_name_cn').value.trim();
+  const spec     = document.getElementById('eit_spec').value.trim();
+  const category = document.getElementById('eit_category').value;
+  const uom      = document.getElementById('eit_uom').value.trim();
+  const msgEl    = document.getElementById('editItemMsg');
+  if (!name_en) { msgEl.innerHTML = '<div class="msg msg-error">English name is required.</div>'; return; }
+  const { ok, error } = await apiFetch(`/api/items/${item_id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name_en, name_cn, spec, category, uom })
+  });
+  if (!ok) { msgEl.innerHTML = `<div class="msg msg-error">${error}</div>`; return; }
+  closeEditItemModal();
+  loadItemMaster();
+}
+
+// ── Export Item Master CSV ─────────────────────────────────────────────────────
+function exportItemMasterCSV() {
+  const items = allMasterItems;
+  if (!items.length) { alert('No items to export.'); return; }
+  const headers = ['item_id','name_en','name_cn','spec','category','uom'];
+  const rows = items.map(it => [
+    it.item_id,
+    it.name_en || '',
+    it.name_cn || '',
+    it.spec || '',
+    it.category_name || it.category || '',
+    it.uom || '',
+  ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
+  const csv = [headers.join(','), ...rows].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = `item_master_${today()}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
 </script>
+
+<!-- ── Edit Item Modal ── -->
+<div class="modal-overlay" id="editItemModal">
+  <div class="modal" style="max-width:520px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div class="modal-title">Edit Item</div>
+      <button onclick="closeEditItemModal()" style="background:none;border:none;cursor:pointer;color:var(--faint);font-size:22px;line-height:1;padding:0">×</button>
+    </div>
+    <div id="editItemMsg"></div>
+    <input type="hidden" id="eit_item_id"/>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div>
+        <label class="field-label">Name (English) *</label>
+        <input type="text" id="eit_name_en" class="field-input"/>
+      </div>
+      <div>
+        <label class="field-label">Name (Chinese)</label>
+        <input type="text" id="eit_name_cn" class="field-input"/>
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label class="field-label">Spec</label>
+      <input type="text" id="eit_spec" class="field-input" placeholder="e.g. DN100, 18mm*35mm*10mm"/>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+      <div>
+        <label class="field-label">Category</label>
+        <select id="eit_category" class="field-input">
+          <option value="">— select —</option>
+          <option>Consumables</option><option>Food</option>
+          <option>Tools and Equipment</option><option>Safety</option>
+          <option>Building/Civil</option><option>Mechanical Parts</option>
+          <option>Electrical</option><option>Structural</option><option>Fasteners</option>
+        </select>
+      </div>
+      <div>
+        <label class="field-label">UOM</label>
+        <input type="text" id="eit_uom" class="field-input" placeholder="pcs, kg, set…" list="uomList"/>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn-primary" onclick="saveEditItem()">Save Changes</button>
+      <button class="btn-outline" onclick="closeEditItemModal()">Cancel</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
