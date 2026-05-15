@@ -490,7 +490,6 @@ textarea.field-input{resize:vertical;min-height:70px}
               <label class="field-label">Department</label>
               <select id="prDepartment" class="field-input">
                 <option value="">— select —</option>
-                ${allDepartments.map(d => `<option value="${d}">${d}</option>`).join('')}
               </select>
             </div>
           </div>
@@ -1004,7 +1003,13 @@ function navTo(page) {
   if (page === 'createPO')     loadCreatePO();
   if (page === 'approvals')    { loadMDView(); loadMDPOApprovals(); }
   if (page === 'itemMaster')   { loadItemMaster(); loadUserManagement(); }
-  if (page === 'createPR')     renderSummary();
+  if (page === 'createPR') {
+    renderSummary();
+    const deptSel = document.getElementById('prDepartment');
+    if (deptSel && deptSel.options.length <= 1) {
+      allDepartments.forEach(d => { const o = document.createElement('option'); o.value = d; o.textContent = d; deptSel.appendChild(o); });
+    }
+  }
   renderPipelinePreview();
 }
 
