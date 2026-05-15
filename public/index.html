@@ -2474,9 +2474,13 @@ async function handleXlFile(input) {
     const wb = XLSX.read(buf, { type: 'array' });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-    // Skip header row if first cell looks like a label
-    const start = (typeof data[0]?.[0] === 'string' && /item|name|barang/i.test(data[0][0])) ? 1 : 0;
-    rows = data.slice(start).filter(r => String(r[0] || '').trim());
+    // Skip header row if first or second cell looks like a label
+    const h0 = String(data[0]?.[0] || '').trim();
+    const h1 = String(data[0]?.[1] || '').trim();
+    const looksLikeHeader = /item|name|barang|deskripsi|description|^no\.?$|^#$|^s\.?no|qty|uom|unit/i.test(h0)
+                         || /item|name|barang|deskripsi|description/i.test(h1);
+    const start = looksLikeHeader ? 1 : 0;
+    rows = data.slice(start).filter(r => String(r[0] || '').trim() || String(r[1] || '').trim());
   } catch (e) {
     msgEl.innerHTML = `<div class="msg msg-error">Could not parse file: ${e.message}</div>`; return;
   }
@@ -2485,8 +2489,11 @@ async function handleXlFile(input) {
     msgEl.innerHTML = '<div class="msg msg-error">No data rows found.</div>'; return;
   }
 
-  // Auto-detect if col A is a numeric index (e.g. 1,2,3...) — shift right if so
-  const isIndexCol = rows.every(r => !String(r[0] || '').trim() || !isNaN(Number(String(r[0]).trim())));
+  // Auto-detect if col A is a pure integer row index (1, 2, 3...) — shift right if so
+  const isIndexCol = rows.length > 0 && rows.every(r => {
+    const v = String(r[0] || '').trim();
+    return !v || /^\d+$/.test(v);  // empty or whole number only
+  });
   const off = isIndexCol ? 1 : 0;
 
   xlRows = rows.map(r => ({
