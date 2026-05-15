@@ -127,11 +127,22 @@ app.post('/api/items/match', requireAuth, (req, res) => {
     if (!Array.isArray(names)) return res.status(400).json({ error: 'names must be array' });
     if (!fuse) return res.json([]);
     const results = names.map(name => {
-      const hits = fuse.search(String(name), { limit: 4 });
-      return {
-        query: name,
-        matches: hits.map(h => ({ item: h.item, score: h.score ?? 1 })),
-      };
+      const base = String(name).trim();
+      // Also try with CJK stripped and CJK-only — picks best score for mixed-language names
+      const enOnly = base.replace(/[\u3000-\u9FFF\uF900-\uFAFF\u4E00-\u9FFF]/g, '').trim();
+      const cnOnly = base.replace(/[^\u4E00-\u9FFF\u3400-\u4DBF]/g, '').trim();
+      const queries = [...new Set([base, enOnly, cnOnly].filter(Boolean))];
+      const best = new Map(); // item_id → {item, score}
+      for (const q of queries) {
+        for (const h of fuse.search(q, { limit: 4 })) {
+          const id = h.item.item_id;
+          if (!best.has(id) || best.get(id).score > (h.score ?? 1)) {
+            best.set(id, { item: h.item, score: h.score ?? 1 });
+          }
+        }
+      }
+      const matches = [...best.values()].sort((a, b) => a.score - b.score).slice(0, 4);
+      return { query: name, matches };
     });
     res.json(results);
   } catch (e) { res.status(500).json({ error: e.message }); }
