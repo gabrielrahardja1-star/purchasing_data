@@ -2457,6 +2457,42 @@ function exportItemMasterCSV() {
 let xlRows = []; // [{query, qty, uom, notes, selectedIdx}]
 let xlMatchData = []; // server response
 
+const XL_UOM_MAP = {
+  // Chinese
+  '卷': 'roll',   // scroll/roll
+  '袋': 'bag',    // bag/pouch
+  '包': 'bag',    // pack/bag
+  '根': 'pcs',    // rod/piece
+  '件': 'pcs',    // piece/item
+  '个': 'pcs',    // piece
+  '块': 'pcs',    // block/piece
+  '把': 'pcs',    // handle/bunch
+  '支': 'pcs',    // stick/piece
+  '张': 'pcs',    // sheet
+  '盒': 'drum',   // small box/tin
+  '罐': 'drum',   // can/jar
+  '桶': 'drum',   // barrel/bucket
+  '瓶': 'drum',   // bottle
+  '箱': 'carton', // carton/box
+  '套': 'set',    // set
+  '付': 'set',    // set/pair
+  '对': 'pair',   // pair
+  '升': 'L',      // litre
+  '米': 'm',      // metre
+  '千克': 'kg',   // kilogram
+  '吨': 'ton',    // tonne
+  // Indonesian / English variants
+  'btg': 'pcs', 'lbr': 'pcs', 'sak': 'bag', 'pack': 'bag', 'bundle': 'box',
+  'can': 'drum', 'tube': 'drum', 'mtr': 'm', 'ltr': 'L', 'litre': 'L', 'liter': 'L',
+  'unit': 'pcs', 'Unit': 'pcs', 'UNIT': 'pcs', 'PCS': 'pcs', 'KG': 'kg', 'TON': 'ton',
+};
+
+function normalizeUOM(raw) {
+  if (!raw) return '';
+  const v = String(raw).trim();
+  return XL_UOM_MAP[v] || v.toLowerCase();
+}
+
 function openXlImport() {
   document.getElementById('xlFileInput').value = '';
   document.getElementById('xlPreviewWrap').innerHTML = '';
@@ -2541,7 +2577,7 @@ async function handleXlFile(input) {
       query,
       label: namePart + (specPart ? ` · ${specPart}` : ''), // shown in UI
       qty:   parseFloat(r[colMap.qty])  || 1,
-      uom:   colMap.uom   != null ? String(r[colMap.uom]   || '').trim() : '',
+      uom:   colMap.uom   != null ? normalizeUOM(r[colMap.uom]) : '',
       notes: colMap.notes != null ? String(r[colMap.notes] || '').trim() : '',
       selectedIdx: 0,
       skip: false,
