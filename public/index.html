@@ -2571,13 +2571,21 @@ async function handleXlFile(input) {
   xlRows = rows.map(r => {
     const namePart = String(r[colMap.name]  || '').trim();
     const specPart = colMap.spec != null ? String(r[colMap.spec] || '').trim() : '';
-    // Use name as the primary query; append spec to help fuzzy matching on model numbers
     const query = specPart ? `${namePart} ${specPart}` : namePart;
+
+    // qty cell may have embedded UOM suffix e.g. "15盘", "300根", "4500个"
+    const qtyRaw = String(r[colMap.qty] ?? '').trim();
+    const qtyNum = parseFloat(qtyRaw) || 1;
+    const embeddedUom = qtyRaw.match(/^[\d.,\s]+([^\d.,\s].*)$/)?.[1]?.trim() || '';
+
+    // Use explicit UOM column if present; fall back to embedded suffix
+    const uomRaw = colMap.uom != null ? String(r[colMap.uom] || '').trim() : embeddedUom;
+
     return {
       query,
-      label: namePart + (specPart ? ` · ${specPart}` : ''), // shown in UI
-      qty:   parseFloat(r[colMap.qty])  || 1,
-      uom:   colMap.uom   != null ? normalizeUOM(r[colMap.uom]) : '',
+      label: namePart + (specPart ? ` · ${specPart}` : ''),
+      qty:   qtyNum,
+      uom:   normalizeUOM(uomRaw),
       notes: colMap.notes != null ? String(r[colMap.notes] || '').trim() : '',
       selectedIdx: 0,
       skip: false,
