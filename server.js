@@ -18,7 +18,16 @@ if (!fs.existsSync(EXPORTS)) fs.mkdirSync(EXPORTS, { recursive: true });
 let fuse;
 async function rebuildFuse() {
   const items = await ch.query('SELECT * FROM items FINAL WHERE is_deleted = 0 ORDER BY item_id');
-  fuse = new Fuse(items, { threshold: 0.4, keys: ['name_en', 'name_cn'], includeScore: true });
+  fuse = new Fuse(items, {
+    threshold: 0.4,
+    includeScore: true,
+    keys: [
+      { name: 'name_en', weight: 3 },
+      { name: 'name_cn', weight: 3 },
+      { name: 'spec',    weight: 2 },
+      { name: 'item_id', weight: 1 },
+    ],
+  });
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
