@@ -252,12 +252,12 @@ app.get('/api/vendors/search', requireAuth, async (req, res) => {
 // ── Purchase Requests ─────────────────────────────────────────────────────────
 app.post('/api/pr', requireRole('requester', 'purchasing', 'admin'), async (req, res) => {
   try {
-    const { requested_by, notes, items } = req.body;
+    const { requested_by, department: deptBody, notes, items } = req.body;
     const requester_id = req.session.user ? String(req.session.user.id) : '';
     if (!requested_by || !items?.length)
       return res.status(400).json({ error: 'requested_by and items required' });
 
-    const department   = (items[0] && items[0].department) || '';
+    const department = deptBody || (items[0] && items[0].department) || '';
     const pr_number    = await nextPrNumber();
     const pr_uuid      = ch.newUUID();
     const legacy_pr_id = await nextLegacyId('purchase_requests', 'legacy_pr_id');
@@ -285,7 +285,7 @@ app.post('/api/pr', requireRole('requester', 'purchasing', 'admin'), async (req,
         uom: it.uom || 'pcs',
         estimated_unit_price: parseFloat(it.est_unit_price) || 0,
         estimated_total_price: (parseFloat(it.est_unit_price) || 0) * (parseFloat(it.qty) || 0),
-        department_id: it.department || '', cost_center_id: '', gl_account_id: '',
+        department_id: department || it.department || '', cost_center_id: '', gl_account_id: '',
         status: 'pending', notes: it.notes || '',
         version: ver, is_deleted: 0, created_at: now, updated_at: now,
       });
