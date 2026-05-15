@@ -865,7 +865,7 @@ textarea.field-input{resize:vertical;min-height:70px}
 <script>
 // ── State ──────────────────────────────────────────────────────────────────────
 let lineItems = [];
-let allDepartments = [];
+const allDepartments = ['Production','CWP','Workshop','Construction','Powerplant','WTP','Wielding'];
 let currentPoItem = null;
 let currentRole = 'requester';
 let prFilter = 'all';
@@ -2235,11 +2235,7 @@ async function adminDeleteUser(user_id, username) {
 }
 
 // ── Departments ────────────────────────────────────────────────────────────────
-async function loadDepartments() {
-  const { ok, data } = await apiFetch('/api/items/departments');
-  if (!ok) return;
-  allDepartments = data;
-}
+function loadDepartments() { /* departments are hardcoded */ }
 
 async function loadUOMList() {
   const { ok, data } = await apiFetch('/api/uom');
