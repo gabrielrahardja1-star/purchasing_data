@@ -1284,7 +1284,6 @@ async function toggleMyPRItems(pr_id) {
       </td>
       <td style="font-size:13px">${it.qty_requested ?? it.qty}</td>
       <td class="text-dim">${it.uom}</td>
-      <td style="font-family:var(--serif);font-size:14px">${it.estimated_unit_price ? fmtMoney(it.estimated_unit_price) : (it.est_unit_price ? fmtMoney(it.est_unit_price) : '—')}</td>
       <td>${statusPill(it.status || 'pending')}</td>
     </tr>`).join('');
   const stageNames = ['Submitted','MD Review','PO Created','GL Export'];
@@ -1298,7 +1297,7 @@ async function toggleMyPRItems(pr_id) {
       ${timeline(currentStage, false)}
     </div>
     <table class="pr-expand-table">
-      <thead><tr><th>Item</th><th>Qty</th><th>UOM</th><th>Est. Unit Price</th><th>Status</th></tr></thead>
+      <thead><tr><th>Item</th><th>Qty</th><th>UOM</th><th>Status</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 }
@@ -1861,7 +1860,7 @@ async function loadMDView() {
           <tr>
             <th style="width:36px"><input type="checkbox" onchange="toggleAllPR(${pr.pr_id}, this)" style="accent-color:var(--accent)"/></th>
             <th>Item</th><th>Qty Req.</th><th style="width:120px">Qty Approved</th>
-            <th>UOM</th><th>Est. Price</th><th>Status</th><th style="width:130px">Action</th>
+            <th>UOM</th><th>Status</th><th style="width:130px">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -1878,7 +1877,6 @@ async function loadMDView() {
               <td><input type="number" id="md-qty-${it.pr_item_id}" value="${it.qty_approved ?? it.qty_requested ?? it.qty}" min="0" step="any"
                 class="field-input field-input-sm" style="width:80px" ${(it.status&&it.status!=='pending')?'disabled':''}/></td>
               <td class="text-dim">${it.uom}</td>
-              <td style="font-family:var(--serif);font-size:14px">${fmtMoney(it.estimated_unit_price ?? it.est_unit_price)}</td>
               <td id="md-status-${it.pr_item_id}">${statusPill(it.status||'pending')}</td>
               <td id="md-action-${it.pr_item_id}">
                 ${(it.status === 'pending' || !it.status) ? `
