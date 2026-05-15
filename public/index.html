@@ -2485,14 +2485,18 @@ async function handleXlFile(input) {
     msgEl.innerHTML = '<div class="msg msg-error">No data rows found.</div>'; return;
   }
 
+  // Auto-detect if col A is a numeric index (e.g. 1,2,3...) — shift right if so
+  const isIndexCol = rows.every(r => !String(r[0] || '').trim() || !isNaN(Number(String(r[0]).trim())));
+  const off = isIndexCol ? 1 : 0;
+
   xlRows = rows.map(r => ({
-    query:  String(r[0] || '').trim(),
-    qty:    parseFloat(r[1]) || 1,
-    uom:    String(r[2] || '').trim(),
-    notes:  String(r[3] || '').trim(),
+    query:  String(r[off]     || '').trim(),
+    qty:    parseFloat(r[off + 1]) || 1,
+    uom:    String(r[off + 2] || '').trim(),
+    notes:  String(r[off + 3] || '').trim(),
     selectedIdx: 0,
     skip: false,
-  }));
+  })).filter(r => r.query);
 
   msgEl.innerHTML = `<div class="msg" style="color:var(--dim)">Matching ${xlRows.length} items…</div>`;
 
