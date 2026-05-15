@@ -2571,7 +2571,7 @@ async function handleXlFile(input) {
   xlRows = rows.map(r => {
     const namePart = String(r[colMap.name]  || '').trim();
     const specPart = colMap.spec != null ? String(r[colMap.spec] || '').trim() : '';
-    // Combine name + spec for richer fuzzy matching, but store original label separately
+    // Use name as the primary query; append spec to help fuzzy matching on model numbers
     const query = specPart ? `${namePart} ${specPart}` : namePart;
     return {
       query,
