@@ -2478,18 +2478,47 @@ async function handleXlFile(input) {
   msgEl.innerHTML = '<div class="msg" style="color:var(--dim)">Parsing file…</div>';
 
   const buf = await file.arrayBuffer();
-  let rows;
+  let rows, colMap;
   try {
     const wb = XLSX.read(buf, { type: 'array' });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-    // Skip header row if first or second cell looks like a label
-    const h0 = String(data[0]?.[0] || '').trim();
-    const h1 = String(data[0]?.[1] || '').trim();
-    const looksLikeHeader = /item|name|barang|deskripsi|description|^no\.?$|^#$|^s\.?no|qty|uom|unit/i.test(h0)
-                         || /item|name|barang|deskripsi|description/i.test(h1);
-    const start = looksLikeHeader ? 1 : 0;
-    rows = data.slice(start).filter(r => String(r[0] || '').trim() || String(r[1] || '').trim());
+    if (!data.length) throw new Error('Empty file');
+
+    // ── Header detection ─────────────────────────────────────────────────────
+    // Find the first row that contains a recognisable column label
+    const HEADER_PATTERNS = {
+      name:  /item|name|deskripsi|description|barang|material|keterangan/i,
+      qty:   /^qty$|^quantity$|^jumlah$|^jml$/i,
+      uom:   /^uom$|^unit$|^satuan$|^s[.\s]?u[.\s]?m$/i,
+      notes: /notes|catatan|keterangan|remark/i,
+    };
+    let headerRowIdx = -1;
+    let rawColMap = {};
+    for (let ri = 0; ri < Math.min(5, data.length); ri++) {
+      const row = data[ri];
+      const found = {};
+      row.forEach((cell, ci) => {
+        const v = String(cell || '').trim();
+        for (const [key, re] of Object.entries(HEADER_PATTERNS)) {
+          if (!found[key] && re.test(v)) found[key] = ci;
+        }
+      });
+      if (found.name !== undefined) { headerRowIdx = ri; rawColMap = found; break; }
+    }
+
+    if (headerRowIdx >= 0) {
+      // Header-guided parsing
+      colMap = rawColMap;
+      rows = data.slice(headerRowIdx + 1).filter(r => String(r[colMap.name] || '').trim());
+    } else {
+      // Fallback: no header found — auto-detect numeric index col then use positional mapping
+      const allData = data.filter(r => String(r[0] || '').trim() || String(r[1] || '').trim());
+      const isIndexCol = allData.length > 0 && allData.every(r => /^\d*$/.test(String(r[0] || '').trim()));
+      const off = isIndexCol ? 1 : 0;
+      colMap = { name: off, qty: off + 1, uom: off + 2, notes: off + 3 };
+      rows = allData;
+    }
   } catch (e) {
     msgEl.innerHTML = `<div class="msg msg-error">Could not parse file: ${e.message}</div>`; return;
   }
@@ -2498,18 +2527,11 @@ async function handleXlFile(input) {
     msgEl.innerHTML = '<div class="msg msg-error">No data rows found.</div>'; return;
   }
 
-  // Auto-detect if col A is a pure integer row index (1, 2, 3...) — shift right if so
-  const isIndexCol = rows.length > 0 && rows.every(r => {
-    const v = String(r[0] || '').trim();
-    return !v || /^\d+$/.test(v);  // empty or whole number only
-  });
-  const off = isIndexCol ? 1 : 0;
-
   xlRows = rows.map(r => ({
-    query:  String(r[off]     || '').trim(),
-    qty:    parseFloat(r[off + 1]) || 1,
-    uom:    String(r[off + 2] || '').trim(),
-    notes:  String(r[off + 3] || '').trim(),
+    query:  String(r[colMap.name]  || '').trim(),
+    qty:    parseFloat(r[colMap.qty])  || 1,
+    uom:    colMap.uom   != null ? String(r[colMap.uom]   || '').trim() : '',
+    notes:  colMap.notes != null ? String(r[colMap.notes] || '').trim() : '',
     selectedIdx: 0,
     skip: false,
   })).filter(r => r.query);
