@@ -486,7 +486,13 @@ textarea.field-input{resize:vertical;min-height:70px}
             <input type="text" id="prRequester" class="field-input" placeholder="Your full name"/>
           </div>
           <div style="height:1px;background:var(--border);margin-bottom:20px"></div>
-          <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:10px">Line Items</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)">Line Items</div>
+            <button class="btn-outline" style="font-size:12px;padding:6px 12px;display:flex;align-items:center;gap:6px" onclick="openXlImport()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Import Excel
+            </button>
+          </div>
 
           <div class="search-wrap" style="margin-bottom:12px">
             <div style="position:relative">
@@ -2420,5 +2426,185 @@ function exportItemMasterCSV() {
     </div>
   </div>
 </div>
+<!-- ── Excel Import PR Modal ── -->
+<div id="xlImportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1100;align-items:flex-start;justify-content:center;padding-top:40px;overflow-y:auto">
+  <div style="background:var(--surface);border-radius:var(--r-lg);width:min(780px,95vw);padding:28px 30px;box-shadow:0 12px 48px rgba(0,0,0,.2);margin-bottom:40px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <h2 style="font-size:18px;font-weight:700">Import from Excel</h2>
+      <button onclick="closeXlImport()" style="color:var(--faint);font-size:22px;line-height:1">×</button>
+    </div>
+    <div id="xlImportMsg" style="margin-bottom:12px"></div>
+    <div id="xlPreviewWrap"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+      <button id="xlAddBtn" class="btn-primary" onclick="confirmXlImport()" style="display:none">Add to PR →</button>
+      <button class="btn-outline" onclick="closeXlImport()">Cancel</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="xlFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleXlFile(this)"/>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script>
+// ── Excel Import ───────────────────────────────────────────────────────────────
+let xlRows = []; // [{query, qty, uom, notes, selectedIdx}]
+let xlMatchData = []; // server response
+
+function openXlImport() {
+  document.getElementById('xlFileInput').value = '';
+  document.getElementById('xlPreviewWrap').innerHTML = '';
+  document.getElementById('xlImportMsg').innerHTML = '';
+  document.getElementById('xlAddBtn').style.display = 'none';
+  xlRows = []; xlMatchData = [];
+  document.getElementById('xlImportModal').style.display = 'flex';
+  document.getElementById('xlFileInput').click();
+}
+
+function closeXlImport() {
+  document.getElementById('xlImportModal').style.display = 'none';
+}
+
+async function handleXlFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const msgEl = document.getElementById('xlImportMsg');
+  msgEl.innerHTML = '<div class="msg" style="color:var(--dim)">Parsing file…</div>';
+
+  const buf = await file.arrayBuffer();
+  let rows;
+  try {
+    const wb = XLSX.read(buf, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    // Skip header row if first cell looks like a label
+    const start = (typeof data[0]?.[0] === 'string' && /item|name|barang/i.test(data[0][0])) ? 1 : 0;
+    rows = data.slice(start).filter(r => String(r[0] || '').trim());
+  } catch (e) {
+    msgEl.innerHTML = `<div class="msg msg-error">Could not parse file: ${e.message}</div>`; return;
+  }
+
+  if (!rows.length) {
+    msgEl.innerHTML = '<div class="msg msg-error">No data rows found.</div>'; return;
+  }
+
+  xlRows = rows.map(r => ({
+    query:  String(r[0] || '').trim(),
+    qty:    parseFloat(r[1]) || 1,
+    uom:    String(r[2] || '').trim(),
+    notes:  String(r[3] || '').trim(),
+    selectedIdx: 0,
+    skip: false,
+  }));
+
+  msgEl.innerHTML = `<div class="msg" style="color:var(--dim)">Matching ${xlRows.length} items…</div>`;
+
+  let matchData;
+  try {
+    const { ok, data, error } = await apiFetch('/api/items/match', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ names: xlRows.map(r => r.query) }),
+    });
+    if (!ok) throw new Error(error);
+    matchData = data;
+  } catch (e) {
+    msgEl.innerHTML = `<div class="msg msg-error">Match API error: ${e.message}</div>`; return;
+  }
+
+  xlMatchData = matchData;
+  msgEl.innerHTML = '';
+  renderXlPreview();
+  document.getElementById('xlAddBtn').style.display = '';
+}
+
+function xlConfidence(score) {
+  if (score == null || score > 0.9) return { label: 'No match', color: '#DC2626', bg: '#FEE2E2' };
+  if (score <= 0.2)  return { label: 'High',     color: '#0D9F5C', bg: '#D1FAE5' };
+  if (score <= 0.45) return { label: 'Medium',   color: '#D97706', bg: '#FEF3C7' };
+  return               { label: 'Low',       color: '#DC2626', bg: '#FEE2E2' };
+}
+
+function renderXlPreview() {
+  const wrap = document.getElementById('xlPreviewWrap');
+  const rows = xlRows.map((r, i) => {
+    const result = xlMatchData[i] || { query: r.query, matches: [] };
+    const match  = result.matches[r.selectedIdx];
+    const conf   = xlConfidence(match?.score);
+    const altOpts = result.matches.map((m, j) =>
+      `<option value="${j}" ${j === r.selectedIdx ? 'selected' : ''}>${escHtml(m.item.name_en)}${m.item.spec ? ' · ' + escHtml(m.item.spec) : ''} (${(m.score*100).toFixed(0)}% diff)</option>`
+    ).join('');
+    const matchDisplay = match
+      ? `<div style="font-size:13px;font-weight:500">${escHtml(match.item.name_en)}${match.item.spec ? `<span style="color:var(--faint);margin-left:6px;font-size:11px">${escHtml(match.item.spec)}</span>` : ''}</div>
+         <div style="font-size:11px;color:var(--faint)">${escHtml(match.item.item_id)} · ${escHtml(match.item.uom)}</div>`
+      : `<div style="font-size:12px;color:var(--faint)">No match found</div>`;
+
+    return `<tr style="border-bottom:1px solid var(--border);${r.skip?'opacity:.4':''}">
+      <td style="padding:10px 8px;vertical-align:top;width:30%;font-size:12px;color:var(--dim)">${escHtml(r.query)}</td>
+      <td style="padding:10px 8px;vertical-align:top;width:28%">
+        ${matchDisplay}
+        ${result.matches.length > 1 ? `<select class="field-input field-input-sm" style="margin-top:4px;font-size:11px" onchange="xlRows[${i}].selectedIdx=+this.value;renderXlPreview()">${altOpts}</select>` : ''}
+      </td>
+      <td style="padding:10px 8px;vertical-align:middle;text-align:center;width:12%">
+        <span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;color:${conf.color};background:${conf.bg}">${conf.label}</span>
+      </td>
+      <td style="padding:10px 8px;vertical-align:middle;width:10%">
+        <input type="number" min="0.01" step="any" value="${r.qty}" class="field-input field-input-sm" style="width:60px" onchange="xlRows[${i}].qty=+this.value"/>
+      </td>
+      <td style="padding:10px 8px;vertical-align:middle;width:10%;text-align:center">
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;justify-content:center">
+          <input type="checkbox" ${r.skip?'checked':''} onchange="xlRows[${i}].skip=this.checked;renderXlPreview()"/> Skip
+        </label>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const matched  = xlRows.filter((r,i) => !r.skip && xlMatchData[i]?.matches.length).length;
+  const skipped  = xlRows.filter(r => r.skip).length;
+  const noMatch  = xlRows.filter((r,i) => !r.skip && !xlMatchData[i]?.matches.length).length;
+
+  wrap.innerHTML = `
+    <div style="display:flex;gap:14px;margin-bottom:14px;font-size:12px">
+      <span style="color:var(--green);font-weight:600">${matched} to add</span>
+      ${noMatch ? `<span style="color:var(--red);font-weight:600">${noMatch} unmatched</span>` : ''}
+      ${skipped ? `<span style="color:var(--faint)">${skipped} skipped</span>` : ''}
+    </div>
+    <div style="max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r-md)">
+      <table style="font-size:13px">
+        <thead><tr style="background:var(--bg-soft);font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint)">
+          <th style="padding:8px 8px;text-align:left">Excel Name</th>
+          <th style="padding:8px 8px;text-align:left">Matched Item</th>
+          <th style="padding:8px 8px;text-align:center">Confidence</th>
+          <th style="padding:8px 8px;text-align:left">Qty</th>
+          <th style="padding:8px 8px;text-align:center">Skip</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function confirmXlImport() {
+  let added = 0;
+  xlRows.forEach((r, i) => {
+    if (r.skip) return;
+    const result = xlMatchData[i];
+    if (!result?.matches.length) return;
+    const match = result.matches[r.selectedIdx];
+    if (!match) return;
+    const item = match.item;
+    // Check if already in lineItems to avoid duplicates
+    if (!lineItems.find(li => li.item_id === item.item_id)) {
+      lineItems.push({
+        item_id: item.item_id, name_en: item.name_en, name_cn: item.name_cn || '',
+        uom: r.uom || item.uom || 'pcs', qty: r.qty, notes: r.notes, department: '',
+      });
+      added++;
+    }
+  });
+  closeXlImport();
+  renderLineItems();
+  renderSummary();
+  if (added) {
+    const msgEl = document.getElementById('prMsg');
+    msgEl.innerHTML = `<div class="msg msg-success">${added} item(s) imported from Excel. Review and fill in departments below.</div>`;
+  }
+}
+</script>
 </body>
 </html>

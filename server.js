@@ -121,6 +121,22 @@ app.get('/api/items/search', requireAuth, (req, res) => {
   res.json(fuse.search(q).slice(0, 5).map(r => r.item));
 });
 
+app.post('/api/items/match', requireAuth, (req, res) => {
+  try {
+    const names = req.body.names;
+    if (!Array.isArray(names)) return res.status(400).json({ error: 'names must be array' });
+    if (!fuse) return res.json([]);
+    const results = names.map(name => {
+      const hits = fuse.search(String(name), { limit: 4 });
+      return {
+        query: name,
+        matches: hits.map(h => ({ item: h.item, score: h.score ?? 1 })),
+      };
+    });
+    res.json(results);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/items/departments', requireAuth, async (req, res) => {
   try {
     const rows = await ch.query(
