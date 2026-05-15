@@ -2488,18 +2488,22 @@ async function handleXlFile(input) {
     // ── Header detection ─────────────────────────────────────────────────────
     // Find the first row that contains a recognisable column label
     const HEADER_PATTERNS = {
-      name:  /item|name|deskripsi|description|barang|material|keterangan/i,
-      qty:   /^qty$|^quantity$|^jumlah$|^jml$/i,
-      uom:   /^uom$|^unit$|^satuan$|^s[.\s]?u[.\s]?m$/i,
-      notes: /notes|catatan|keterangan|remark/i,
+      name:  /item|name|deskripsi|description|barang|material|keterangan|品名|名称|物料|材料名|规格型号/,
+      qty:   /^qty$|^quantity$|^jumlah$|^jml$|^数量$|^数$|^qty\.$/i,
+      uom:   /^uom$|^unit$|^satuan$|^s[.\s]?u[.\s]?m$|^单位$|^单$|^计量单位$/i,
+      notes: /notes|catatan|keterangan|remark|备注|说明|note/i,
     };
+    // Index-column labels — these should be skipped, not treated as item name
+    const INDEX_COL_RE = /^(no\.?|#|s\.?no\.?|序号|编号|行号)$/i;
+
     let headerRowIdx = -1;
     let rawColMap = {};
-    for (let ri = 0; ri < Math.min(5, data.length); ri++) {
+    for (let ri = 0; ri < Math.min(6, data.length); ri++) {
       const row = data[ri];
       const found = {};
       row.forEach((cell, ci) => {
         const v = String(cell || '').trim();
+        if (INDEX_COL_RE.test(v)) return; // skip index columns
         for (const [key, re] of Object.entries(HEADER_PATTERNS)) {
           if (!found[key] && re.test(v)) found[key] = ci;
         }
