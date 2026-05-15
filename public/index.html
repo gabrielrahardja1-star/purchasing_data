@@ -481,9 +481,18 @@ textarea.field-input{resize:vertical;min-height:70px}
       <div class="create-pr-grid">
         <div class="form-card">
           <div id="prMsg"></div>
-          <div style="margin-bottom:22px">
-            <label class="field-label">Requester Name</label>
-            <input type="text" id="prRequester" class="field-input" placeholder="Your full name"/>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px">
+            <div>
+              <label class="field-label">Requester Name</label>
+              <input type="text" id="prRequester" class="field-input" placeholder="Your full name"/>
+            </div>
+            <div>
+              <label class="field-label">Department</label>
+              <select id="prDepartment" class="field-input">
+                <option value="">— select —</option>
+                ${allDepartments.map(d => `<option value="${d}">${d}</option>`).join('')}
+              </select>
+            </div>
           </div>
           <div style="height:1px;background:var(--border);margin-bottom:20px"></div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -510,9 +519,8 @@ textarea.field-input{resize:vertical;min-height:70px}
             <table>
               <thead class="lit-head">
                 <tr>
-                  <th style="width:30%">Item</th><th style="width:9%">Qty</th>
-                  <th style="width:8%">UOM</th>
-                  <th style="width:18%">Department</th>
+                  <th style="width:36%">Item</th><th style="width:10%">Qty</th>
+                  <th style="width:10%">UOM</th>
                   <th>Notes</th><th style="width:32px"></th>
                 </tr>
               </thead>
@@ -2009,11 +2017,6 @@ function renderLineItems() {
       </td>
       <td><input type="number" min="0.01" step="any" value="${it.qty}" class="field-input field-input-sm" style="width:70px" onchange="lineItems[${i}].qty=+this.value;renderSummary()"/></td>
       <td><input type="text" value="${it.uom}" class="field-input field-input-sm" style="width:80px" list="uomList" onchange="lineItems[${i}].uom=this.value"/></td>
-      <td>
-        <select class="field-input field-input-sm" onchange="lineItems[${i}].department=this.value">
-          ${['', ...allDepartments].map(d => `<option value="${d}" ${it.department===d?'selected':''}>${d||'— select —'}</option>`).join('')}
-        </select>
-      </td>
       <td><input type="text" value="${it.notes}" placeholder="optional" class="field-input field-input-sm" onchange="lineItems[${i}].notes=this.value"/></td>
       <td><button onclick="removeLineItem(${i})" style="color:var(--faint);font-size:18px;line-height:1">×</button></td>
     </tr>`).join('');
@@ -2036,20 +2039,22 @@ function renderPipelinePreview() {
 
 async function submitPR() {
   const requested_by = document.getElementById('prRequester').value.trim();
+  const department   = document.getElementById('prDepartment').value;
   const notes        = document.getElementById('prNotes').value.trim();
   const msgEl        = document.getElementById('prMsg');
   if (!requested_by) {
     msgEl.innerHTML = '<div class="msg msg-error">Please fill in Requester Name.</div>'; return;
   }
+  if (!department) {
+    msgEl.innerHTML = '<div class="msg msg-error">Please select a Department.</div>'; return;
+  }
   if (!lineItems.length) {
     msgEl.innerHTML = '<div class="msg msg-error">Add at least one line item.</div>'; return;
   }
-  if (lineItems.some(it => !it.department)) {
-    msgEl.innerHTML = '<div class="msg msg-error">Please select a department for every line item.</div>'; return;
-  }
+  const itemsWithDept = lineItems.map(it => ({ ...it, department }));
   const { ok, data, error } = await apiFetch('/api/pr', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ requested_by, notes, items: lineItems, requester_id: String(currentUser.id) })
+    body: JSON.stringify({ requested_by, department, notes, items: itemsWithDept, requester_id: String(currentUser.id) })
   });
   if (!ok) { msgEl.innerHTML = `<div class="msg msg-error">${error}</div>`; return; }
   msgEl.innerHTML = `<div class="msg msg-success">✓ Purchase Request <strong>${data.pr_number}</strong> submitted successfully.</div>`;
@@ -2057,6 +2062,7 @@ async function submitPR() {
   renderLineItems();
   renderSummary();
   document.getElementById('prRequester').value = '';
+  document.getElementById('prDepartment').value = '';
   document.getElementById('prNotes').value = '';
 }
 
@@ -2614,7 +2620,7 @@ function confirmXlImport() {
   renderSummary();
   if (added) {
     const msgEl = document.getElementById('prMsg');
-    msgEl.innerHTML = `<div class="msg msg-success">${added} item(s) imported from Excel. Review and fill in departments below.</div>`;
+    msgEl.innerHTML = `<div class="msg msg-success">${added} item(s) imported from Excel. Review quantities below.</div>`;
   }
 }
 </script>
