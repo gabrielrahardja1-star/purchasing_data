@@ -2488,8 +2488,9 @@ async function handleXlFile(input) {
     // ── Header detection ─────────────────────────────────────────────────────
     // Find the first row that contains a recognisable column label
     const HEADER_PATTERNS = {
-      name:  /item|name|deskripsi|description|barang|material|keterangan|品名|名称|物料|材料名|规格型号/,
-      qty:   /^qty$|^quantity$|^jumlah$|^jml$|^数量$|^数$|^qty\.$/i,
+      name:  /item|name|deskripsi|description|barang|material|keterangan|品名|名称|物料|材料名/,
+      spec:  /规格型号|规格|型号|spec|model/i,
+      qty:   /采购数量|数量|^qty$|^quantity$|^jumlah$|^jml$|^数$|^qty\.$/i,
       uom:   /^uom$|^unit$|^satuan$|^s[.\s]?u[.\s]?m$|^单位$|^单$|^计量单位$/i,
       notes: /notes|catatan|keterangan|remark|备注|说明|note/i,
     };
@@ -2531,14 +2532,21 @@ async function handleXlFile(input) {
     msgEl.innerHTML = '<div class="msg msg-error">No data rows found.</div>'; return;
   }
 
-  xlRows = rows.map(r => ({
-    query:  String(r[colMap.name]  || '').trim(),
-    qty:    parseFloat(r[colMap.qty])  || 1,
-    uom:    colMap.uom   != null ? String(r[colMap.uom]   || '').trim() : '',
-    notes:  colMap.notes != null ? String(r[colMap.notes] || '').trim() : '',
-    selectedIdx: 0,
-    skip: false,
-  })).filter(r => r.query);
+  xlRows = rows.map(r => {
+    const namePart = String(r[colMap.name]  || '').trim();
+    const specPart = colMap.spec != null ? String(r[colMap.spec] || '').trim() : '';
+    // Combine name + spec for richer fuzzy matching, but store original label separately
+    const query = specPart ? `${namePart} ${specPart}` : namePart;
+    return {
+      query,
+      label: namePart + (specPart ? ` · ${specPart}` : ''), // shown in UI
+      qty:   parseFloat(r[colMap.qty])  || 1,
+      uom:   colMap.uom   != null ? String(r[colMap.uom]   || '').trim() : '',
+      notes: colMap.notes != null ? String(r[colMap.notes] || '').trim() : '',
+      selectedIdx: 0,
+      skip: false,
+    };
+  }).filter(r => r.query);
 
   msgEl.innerHTML = `<div class="msg" style="color:var(--dim)">Matching ${xlRows.length} items…</div>`;
 
@@ -2577,11 +2585,11 @@ function renderXlPreview() {
       `<option value="${j}" ${j === r.selectedIdx ? 'selected' : ''}>${escHtml(m.item.name_en)}${m.item.spec ? ' · ' + escHtml(m.item.spec) : ''} (${(m.score*100).toFixed(0)}% diff)</option>`
     ).join('');
     const matchDisplay = match
-      ? `<div style="font-size:11px;color:var(--faint);font-style:italic;margin-bottom:5px">"${escHtml(r.query)}"</div>
+      ? `<div style="font-size:11px;color:var(--faint);font-style:italic;margin-bottom:5px">"${escHtml(r.label || r.query)}"</div>
          <div style="font-size:11px;color:var(--faint);margin-bottom:4px">↓ matched to</div>
          <div style="font-size:13px;font-weight:600;color:var(--text)">${escHtml(match.item.name_en)}${match.item.spec ? `<span style="color:var(--faint);margin-left:6px;font-size:11px;font-weight:400">${escHtml(match.item.spec)}</span>` : ''}</div>
          <div style="font-size:11px;color:var(--faint);margin-top:2px">${escHtml(match.item.item_id)} · ${escHtml(match.item.uom)}</div>`
-      : `<div style="font-size:11px;color:var(--faint);font-style:italic;margin-bottom:5px">"${escHtml(r.query)}"</div>
+      : `<div style="font-size:11px;color:var(--faint);font-style:italic;margin-bottom:5px">"${escHtml(r.label || r.query)}"</div>
          <div style="font-size:12px;color:var(--red);font-weight:500">No match found</div>`;
 
     return `<tr style="border-bottom:1px solid var(--border);${r.skip?'opacity:.4':''}">
