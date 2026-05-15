@@ -2531,23 +2531,25 @@ function renderXlPreview() {
       `<option value="${j}" ${j === r.selectedIdx ? 'selected' : ''}>${escHtml(m.item.name_en)}${m.item.spec ? ' · ' + escHtml(m.item.spec) : ''} (${(m.score*100).toFixed(0)}% diff)</option>`
     ).join('');
     const matchDisplay = match
-      ? `<div style="font-size:13px;font-weight:500">${escHtml(match.item.name_en)}${match.item.spec ? `<span style="color:var(--faint);margin-left:6px;font-size:11px">${escHtml(match.item.spec)}</span>` : ''}</div>
-         <div style="font-size:11px;color:var(--faint)">${escHtml(match.item.item_id)} · ${escHtml(match.item.uom)}</div>`
-      : `<div style="font-size:12px;color:var(--faint)">No match found</div>`;
+      ? `<div style="font-size:11px;color:var(--faint);font-style:italic;margin-bottom:5px">"${escHtml(r.query)}"</div>
+         <div style="font-size:11px;color:var(--faint);margin-bottom:4px">↓ matched to</div>
+         <div style="font-size:13px;font-weight:600;color:var(--text)">${escHtml(match.item.name_en)}${match.item.spec ? `<span style="color:var(--faint);margin-left:6px;font-size:11px;font-weight:400">${escHtml(match.item.spec)}</span>` : ''}</div>
+         <div style="font-size:11px;color:var(--faint);margin-top:2px">${escHtml(match.item.item_id)} · ${escHtml(match.item.uom)}</div>`
+      : `<div style="font-size:11px;color:var(--faint);font-style:italic;margin-bottom:5px">"${escHtml(r.query)}"</div>
+         <div style="font-size:12px;color:var(--red);font-weight:500">No match found</div>`;
 
     return `<tr style="border-bottom:1px solid var(--border);${r.skip?'opacity:.4':''}">
-      <td style="padding:10px 8px;vertical-align:top;width:30%;font-size:12px;color:var(--dim)">${escHtml(r.query)}</td>
-      <td style="padding:10px 8px;vertical-align:top;width:28%">
+      <td style="padding:10px 8px;vertical-align:top;width:52%">
         ${matchDisplay}
-        ${result.matches.length > 1 ? `<select class="field-input field-input-sm" style="margin-top:4px;font-size:11px" onchange="xlRows[${i}].selectedIdx=+this.value;renderXlPreview()">${altOpts}</select>` : ''}
+        ${result.matches.length > 1 ? `<select class="field-input field-input-sm" style="margin-top:6px;font-size:11px" onchange="xlRows[${i}].selectedIdx=+this.value;renderXlPreview()">${altOpts}</select>` : ''}
       </td>
-      <td style="padding:10px 8px;vertical-align:middle;text-align:center;width:12%">
+      <td style="padding:10px 8px;vertical-align:middle;text-align:center;width:14%">
         <span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;color:${conf.color};background:${conf.bg}">${conf.label}</span>
       </td>
-      <td style="padding:10px 8px;vertical-align:middle;width:10%">
+      <td style="padding:10px 8px;vertical-align:middle;width:12%">
         <input type="number" min="0.01" step="any" value="${r.qty}" class="field-input field-input-sm" style="width:60px" onchange="xlRows[${i}].qty=+this.value"/>
       </td>
-      <td style="padding:10px 8px;vertical-align:middle;width:10%;text-align:center">
+      <td style="padding:10px 8px;vertical-align:middle;width:12%;text-align:center">
         <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;justify-content:center">
           <input type="checkbox" ${r.skip?'checked':''} onchange="xlRows[${i}].skip=this.checked;renderXlPreview()"/> Skip
         </label>
@@ -2568,8 +2570,7 @@ function renderXlPreview() {
     <div style="max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r-md)">
       <table style="font-size:13px">
         <thead><tr style="background:var(--bg-soft);font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint)">
-          <th style="padding:8px 8px;text-align:left">Excel Name</th>
-          <th style="padding:8px 8px;text-align:left">Matched Item</th>
+          <th style="padding:8px 8px;text-align:left">Excel → Database Match</th>
           <th style="padding:8px 8px;text-align:center">Confidence</th>
           <th style="padding:8px 8px;text-align:left">Qty</th>
           <th style="padding:8px 8px;text-align:center">Skip</th>
