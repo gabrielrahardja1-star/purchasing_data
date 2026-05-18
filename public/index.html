@@ -2623,14 +2623,14 @@ async function handleXlFile(input) {
     // ── Header detection ─────────────────────────────────────────────────────
     // Find the first row that contains a recognisable column label
     const HEADER_PATTERNS = {
-      name:  /item|name|deskripsi|description|barang|keterangan|品名|^名称$|材料名称|物料名称/,
-      spec:  /规格型号|规格|型号|spec|model/i,
-      qty:   /采购数量|数量|^qty$|^quantity$|^jumlah$|^jml$|^数$|^qty\.$/i,
-      uom:   /^uom$|^unit$|^satuan$|^s[.\s]?u[.\s]?m$|^单位$|^单$|^计量单位$/i,
+      name:  /nama.?barang|nama.?item|nama.?material|nama.?bahan|deskripsi.?barang|uraian.?barang|uraian|item|name|deskripsi|description|barang|品名|^名称$|材料名称|物料名称/i,
+      spec:  /规格型号|规格|型号|spesifikasi|spec|model|tipe|type/i,
+      qty:   /采购数量|数量|jumlah.?kebutuhan|jumlah.?beli|jumlah.?order|^jumlah$|^jml$|^qty$|^quantity$|^数$|^qty\.$|采购/i,
+      uom:   /^uom$|^unit$|^satuan$|^s[.\s]?u[.\s]?m$|^单位$|^单$|^计量单位$|^sat\.?$/i,
       notes: /notes|catatan|keterangan|remark|备注|说明|note/i,
     };
     // Index-column labels — these should be skipped, not treated as item name
-    const INDEX_COL_RE = /^(no\.?|#|s\.?no\.?|序号|编号|行号|物料类型|类型|类别|department|dept|category)$/i;
+    const INDEX_COL_RE = /^(no\.?|#|s\.?no\.?|nomor|nomer|序号|编号|行号|物料类型|类型|类别|department|dept|category|jenis|tipe\.?barang|harga\.?satuan|harga\.?total|total\.?harga|vendor|supplier|pemasok|progress|进度|单价|总价|供货商)$/i;
 
     let headerRowIdx = -1;
     let rawColMap = {};
