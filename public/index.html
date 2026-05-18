@@ -816,15 +816,42 @@ textarea.field-input{resize:vertical;min-height:70px}
           </label>
           <span class="serif-num" id="cpoBulkVATAmount" style="color:var(--faint);font-size:13px">—</span>
         </div>
-        <div class="summary-row" style="padding:10px 0;align-items:center">
-          <select id="cpoBulkPPHType" onchange="updateCPOBulkSummary()" class="field-input field-input-sm" style="flex:1;margin-right:8px">
-            <option value="">PPH — tidak ada</option>
-            <option value="pph23">PPH 23 · Jasa Badan (2%)</option>
-            <option value="pph15">PPH 15 · Jasa Tongkang (1,2%)</option>
-            <option value="pph22_solar">PPH 22 · Solar (0,3%)</option>
-            <option value="pph22_impor">PPH 22 · Impor (2,5%)</option>
-          </select>
-          <span class="serif-num" id="cpoBulkPPHAmount" style="color:var(--faint);font-size:13px;white-space:nowrap">—</span>
+        <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-bottom:8px">PPH Withholding</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-size:13px">
+              <span style="display:flex;align-items:center;gap:6px">
+                <input type="checkbox" id="cpoBulkPPH_pph23" onchange="updateCPOBulkSummary()" style="width:14px;height:14px;accent-color:var(--accent)">
+                PPH 23 · Jasa Badan
+              </span>
+              <span class="serif-num" id="cpoBulkPPHAmt_pph23" style="color:var(--faint);font-size:13px">— (2%)</span>
+            </label>
+            <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-size:13px">
+              <span style="display:flex;align-items:center;gap:6px">
+                <input type="checkbox" id="cpoBulkPPH_pph15" onchange="updateCPOBulkSummary()" style="width:14px;height:14px;accent-color:var(--accent)">
+                PPH 15 · Jasa Tongkang
+              </span>
+              <span class="serif-num" id="cpoBulkPPHAmt_pph15" style="color:var(--faint);font-size:13px">— (1,2%)</span>
+            </label>
+            <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-size:13px">
+              <span style="display:flex;align-items:center;gap:6px">
+                <input type="checkbox" id="cpoBulkPPH_pph22_solar" onchange="updateCPOBulkSummary()" style="width:14px;height:14px;accent-color:var(--accent)">
+                PPH 22 · Solar
+              </span>
+              <span class="serif-num" id="cpoBulkPPHAmt_pph22_solar" style="color:var(--faint);font-size:13px">— (0,3%)</span>
+            </label>
+            <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-size:13px">
+              <span style="display:flex;align-items:center;gap:6px">
+                <input type="checkbox" id="cpoBulkPPH_pph22_impor" onchange="updateCPOBulkSummary()" style="width:14px;height:14px;accent-color:var(--accent)">
+                PPH 22 · Impor
+              </span>
+              <span class="serif-num" id="cpoBulkPPHAmt_pph22_impor" style="color:var(--faint);font-size:13px">— (2,5%)</span>
+            </label>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px">
+            <span style="color:var(--faint)">Total PPH</span>
+            <span class="serif-num" id="cpoBulkPPHAmount" style="color:var(--faint);font-size:13px;white-space:nowrap">—</span>
+          </div>
         </div>
         <div class="summary-row" style="border-bottom:none;border-top:1px solid var(--border);padding-top:10px;margin-top:4px">
           <span>Total amount</span>
@@ -1491,7 +1518,10 @@ function openCPOBulkModal() {
   document.getElementById('vendorMeta').style.display = 'none';
   _vendorSelected = null;
   document.getElementById('cpoBulkVAT').checked = false;
-  document.getElementById('cpoBulkPPHType').value = '';
+  ['pph23','pph15','pph22_solar','pph22_impor'].forEach(id => {
+    const cb = document.getElementById(`cpoBulkPPH_${id}`);
+    if (cb) cb.checked = false;
+  });
   // Render selected items into modal table
   const body = document.getElementById('cpoBulkItemsBody');
   const selectedItems = createPOItems.filter(it => createPOSelected.has(String(it.pr_item_id)));
@@ -1537,14 +1567,21 @@ function updateCPOBulkSummary() {
     }
   });
   const PPH_RATES = { pph23: 0.02, pph15: 0.012, pph22_solar: 0.003, pph22_impor: 0.025 };
+  const PPH_LABELS = { pph23:'2%', pph15:'1,2%', pph22_solar:'0,3%', pph22_impor:'2,5%' };
   const includeVAT = document.getElementById('cpoBulkVAT')?.checked || false;
-  const pphType    = document.getElementById('cpoBulkPPHType')?.value || '';
   const vatAmount  = includeVAT ? subtotal * 0.11 : 0;
-  const pphAmount  = subtotal * (PPH_RATES[pphType] || 0);
-  const total      = subtotal + vatAmount - pphAmount;
+  let pphAmount = 0;
+  Object.entries(PPH_RATES).forEach(([id, rate]) => {
+    const cb  = document.getElementById(`cpoBulkPPH_${id}`);
+    const amt = cb?.checked ? subtotal * rate : 0;
+    pphAmount += amt;
+    const amtEl = document.getElementById(`cpoBulkPPHAmt_${id}`);
+    if (amtEl) amtEl.textContent = cb?.checked ? `− ${fmtMoney(amt)} (${PPH_LABELS[id]})` : `— (${PPH_LABELS[id]})`;
+  });
+  const total = subtotal + vatAmount - pphAmount;
   document.getElementById('cpoBulkSubtotal').textContent  = fmtMoney(subtotal);
   document.getElementById('cpoBulkVATAmount').textContent = includeVAT ? `+ ${fmtMoney(vatAmount)}` : '—';
-  document.getElementById('cpoBulkPPHAmount').textContent = pphType    ? `− ${fmtMoney(pphAmount)}` : '—';
+  document.getElementById('cpoBulkPPHAmount').textContent = pphAmount > 0 ? `− ${fmtMoney(pphAmount)}` : '—';
   document.getElementById('cpoBulkTotal').textContent     = fmtMoney(total);
 }
 
@@ -1566,11 +1603,12 @@ async function submitCPOBulk() {
   }
 
   const include_vat = document.getElementById('cpoBulkVAT')?.checked || false;
-  const pph_type    = document.getElementById('cpoBulkPPHType')?.value || null;
+  const pph_types   = ['pph23','pph15','pph22_solar','pph22_impor']
+    .filter(id => document.getElementById(`cpoBulkPPH_${id}`)?.checked);
 
   const { ok, data, error } = await apiFetch('/api/po', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ vendor_name, items, include_vat, pph_type: pph_type || null })
+    body: JSON.stringify({ vendor_name, items, include_vat, pph_type: pph_types[0] || null, pph_types })
   });
   if (!ok) { msgEl.innerHTML = `<div class="msg msg-error">${error}</div>`; return; }
 
