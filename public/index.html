@@ -2488,8 +2488,9 @@ function exportItemMasterCSV() {
     </div>
   </div>
 </div>
-<input type="file" id="xlFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleXlFile(this)"/>
+<input type="file" id="xlFileInput" accept=".xlsx,.xls,.csv,.pdf" style="display:none" onchange="handleXlFile(this)"/>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 // ── Excel Import ───────────────────────────────────────────────────────────────
 let xlRows = []; // [{query, qty, uom, notes, selectedIdx}]
@@ -2548,6 +2549,58 @@ function closeXlImport() {
   document.getElementById('xlImportModal').style.display = 'none';
 }
 
+// ── PDF table extractor ────────────────────────────────────────────────────────
+async function extractTableFromPDF(buf) {
+  if (typeof pdfjsLib === 'undefined') throw new Error('PDF.js not loaded yet — try again in a moment');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const allItems = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    // Each item has transform [scaleX,skewX,skewY,scaleY,x,y]
+    content.items.forEach(item => {
+      if (!item.str.trim()) return;
+      allItems.push({ text: item.str.trim(), x: item.transform[4], y: item.transform[5] });
+    });
+  }
+  if (!allItems.length) throw new Error('No text found in PDF');
+
+  // Group items into rows by y-coordinate (within 4pt tolerance)
+  allItems.sort((a, b) => b.y - a.y || a.x - b.x); // top-to-bottom, left-to-right
+  const rows2d = [];
+  let currentRow = [], lastY = null;
+  for (const item of allItems) {
+    if (lastY === null || Math.abs(item.y - lastY) > 4) {
+      if (currentRow.length) rows2d.push(currentRow);
+      currentRow = [item];
+      lastY = item.y;
+    } else {
+      currentRow.push(item);
+      lastY = (lastY + item.y) / 2;
+    }
+  }
+  if (currentRow.length) rows2d.push(currentRow);
+
+  // Find column x-boundaries from the header row (widest set of distinct x positions)
+  // Use the row with the most cells as the reference row for column x positions
+  const refRow = rows2d.reduce((a, b) => a.length >= b.length ? a : b);
+  const colXs = refRow.map(i => i.x).sort((a, b) => a - b);
+
+  // Assign each cell to nearest column
+  function nearestCol(x) {
+    let best = 0, bestDist = Infinity;
+    colXs.forEach((cx, ci) => { const d = Math.abs(x - cx); if (d < bestDist) { bestDist = d; best = ci; } });
+    return best;
+  }
+
+  return rows2d.map(row => {
+    const cells = new Array(colXs.length).fill('');
+    row.forEach(item => { cells[nearestCol(item.x)] += (cells[nearestCol(item.x)] ? ' ' : '') + item.text; });
+    return cells;
+  });
+}
+
 async function handleXlFile(input) {
   const file = input.files[0];
   if (!file) return;
@@ -2557,9 +2610,14 @@ async function handleXlFile(input) {
   const buf = await file.arrayBuffer();
   let rows, colMap;
   try {
-    const wb = XLSX.read(buf, { type: 'array' });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    let data;
+    if (file.name.toLowerCase().endsWith('.pdf')) {
+      data = await extractTableFromPDF(buf);
+    } else {
+      const wb = XLSX.read(buf, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    }
     if (!data.length) throw new Error('Empty file');
 
     // ── Header detection ─────────────────────────────────────────────────────
