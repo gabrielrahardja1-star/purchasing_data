@@ -352,6 +352,7 @@ textarea.field-input{resize:vertical;min-height:70px}
     <button class="nav-item" data-page="createPR" onclick="navTo('createPR')">
       <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
       <span>New Request</span>
+      <span id="itemReqNavBadge" style="display:none;background:var(--amber);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:20px;margin-left:auto"></span>
     </button>
     <button class="nav-item" data-page="myPRs" onclick="navTo('myPRs')">
       <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
@@ -478,6 +479,10 @@ textarea.field-input{resize:vertical;min-height:70px}
 
     <!-- ── Create PR ── -->
     <div id="page-createPR" class="page">
+      <div id="myItemRequestsBanner" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 18px;margin-bottom:16px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:10px">My Item Requests</div>
+        <div id="myItemRequestsList"></div>
+      </div>
       <div class="create-pr-grid">
         <div class="form-card">
           <div id="prMsg"></div>
@@ -704,6 +709,17 @@ textarea.field-input{resize:vertical;min-height:70px}
           </thead>
           <tbody id="adminItemTableBody"></tbody>
         </table>
+      </div>
+
+      <!-- Pending Item Requests -->
+      <div style="margin-top:32px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)">Pending Item Requests</div>
+          <span id="itemReqBadge" style="display:none;background:var(--amber);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px"></span>
+        </div>
+        <div id="itemRequestsTable" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden">
+          <div id="itemRequestsBody" style="padding:16px;color:var(--faint);font-size:13px">Loading…</div>
+        </div>
       </div>
 
       <!-- User Management -->
@@ -1029,9 +1045,10 @@ function navTo(page) {
   if (page === 'poList')       loadPOList();
   if (page === 'createPO')     loadCreatePO();
   if (page === 'approvals')    { loadMDView(); loadMDPOApprovals(); }
-  if (page === 'itemMaster')   { loadItemMaster(); loadUserManagement(); }
+  if (page === 'itemMaster')   { loadItemMaster(); loadUserManagement(); loadItemRequests(); }
   if (page === 'createPR') {
     renderSummary();
+    loadMyItemRequests();
     const deptSel = document.getElementById('prDepartment');
     if (deptSel && deptSel.options.length <= 1) {
       allDepartments.forEach(d => { const o = document.createElement('option'); o.value = d; o.textContent = d; deptSel.appendChild(o); });
@@ -2358,6 +2375,17 @@ function initApp() {
   loadUOMList();
   switchRole(currentUser.role);
   renderPipelinePreview();
+  pollItemRequestBadge();
+}
+
+async function pollItemRequestBadge() {
+  const badge = document.getElementById('itemReqNavBadge');
+  if (!badge) return;
+  const { ok, data } = await apiFetch('/api/item-requests/mine');
+  if (!ok || !data) return;
+  const approvedCount = data.filter(r => r.status === 'approved').length;
+  badge.textContent = approvedCount || '';
+  badge.style.display = approvedCount ? '' : 'none';
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────────
@@ -2404,6 +2432,107 @@ async function saveEditItem() {
   if (!ok) { msgEl.innerHTML = `<div class="msg msg-error">${error}</div>`; return; }
   closeEditItemModal();
   loadItemMaster();
+}
+
+// ── Item Requests (Requester) ──────────────────────────────────────────────────
+async function loadMyItemRequests() {
+  const banner = document.getElementById('myItemRequestsBanner');
+  const list   = document.getElementById('myItemRequestsList');
+  if (!banner || !list) return;
+  const { ok, data } = await apiFetch('/api/item-requests/mine');
+  if (!ok || !data?.length) { banner.style.display = 'none'; return; }
+  banner.style.display = '';
+  list.innerHTML = data.map(r => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <div>
+        <span style="font-weight:500">${escHtml(r.name_en)}</span>
+        ${r.admin_notes ? `<span style="font-size:11px;color:var(--dim);margin-left:8px">Admin note: ${escHtml(r.admin_notes)}</span>` : ''}
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        ${r.status === 'approved' ? `
+          <span style="font-size:11px;color:var(--green);font-weight:600">✓ Approved → ${escHtml(r.approved_item_id)}</span>
+          <button class="btn-primary btn-sm" onclick="addApprovedRequestItem('${r.approved_item_id}','${r.request_id}')">Add to PR</button>
+        ` : statusPill(r.status)}
+      </div>
+    </div>`).join('');
+}
+
+async function addApprovedRequestItem(item_id, request_id) {
+  const { ok, data } = await apiFetch(`/api/items`);
+  if (!ok) return;
+  const item = data.find(it => it.item_id === item_id);
+  if (!item) { alert('Item not found — please refresh.'); return; }
+  if (!lineItems.find(li => li.item_id === item.item_id)) {
+    lineItems.push({ item_id: item.item_id, name_en: item.name_en, name_cn: item.name_cn || '', uom: item.uom || 'pcs', qty: 1, notes: '', department: '' });
+    renderLineItems(); renderSummary();
+  }
+}
+
+// ── Item Requests (Admin) ──────────────────────────────────────────────────────
+async function loadItemRequests() {
+  const body = document.getElementById('itemRequestsBody');
+  const badge = document.getElementById('itemReqBadge');
+  if (!body) return;
+  const { ok, data, error } = await apiFetch('/api/item-requests');
+  if (!ok) { body.innerHTML = `<div style="padding:16px;color:var(--faint);font-size:13px">${error}</div>`; return; }
+  const pending = data.filter(r => r.status === 'pending');
+  if (badge) { badge.textContent = pending.length || ''; badge.style.display = pending.length ? '' : 'none'; }
+  if (!data.length) { body.innerHTML = '<div style="padding:16px;color:var(--faint);font-size:13px">No item requests yet.</div>'; return; }
+  body.innerHTML = `
+    <table style="font-size:13px">
+      <thead><tr style="background:var(--bg-soft);font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint)">
+        <th style="padding:8px 12px;text-align:left">Item Name (from Excel)</th>
+        <th style="padding:8px 12px;text-align:left">Requested By</th>
+        <th style="padding:8px 12px;text-align:left">UOM</th>
+        <th style="padding:8px 12px;text-align:left">Notes</th>
+        <th style="padding:8px 12px;text-align:left">Date</th>
+        <th style="padding:8px 12px;text-align:center">Status</th>
+        <th style="padding:8px 12px;text-align:center">Action</th>
+      </tr></thead>
+      <tbody>
+        ${data.map(r => `
+          <tr style="border-top:1px solid var(--border)">
+            <td style="padding:10px 12px">
+              <div style="font-weight:500">${escHtml(r.name_en)}</div>
+              ${r.source_excel_name && r.source_excel_name !== r.name_en ? `<div style="font-size:11px;color:var(--faint)">from: "${escHtml(r.source_excel_name)}"</div>` : ''}
+            </td>
+            <td style="padding:10px 12px;color:var(--dim)">${escHtml(r.requested_by_name)}</td>
+            <td style="padding:10px 12px;color:var(--dim)">${escHtml(r.uom)}</td>
+            <td style="padding:10px 12px;color:var(--dim);font-size:12px">${escHtml(r.notes || '—')}</td>
+            <td style="padding:10px 12px;color:var(--dim);font-size:12px;white-space:nowrap">${String(r.created_at || '').slice(0,10)}</td>
+            <td style="padding:10px 12px;text-align:center">${statusPill(r.status)}</td>
+            <td style="padding:10px 12px;text-align:center">
+              ${r.status === 'pending' ? `
+                <div style="display:flex;gap:6px;justify-content:center">
+                  <button class="btn-approve" onclick="approveItemRequest('${r.request_id}')">✓ Approve</button>
+                  <button class="btn-reject"  onclick="rejectItemRequest('${r.request_id}')">✗ Reject</button>
+                </div>` : r.status === 'approved' ? `<span style="font-size:11px;color:var(--green)">${escHtml(r.approved_item_id)}</span>` : '—'}
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+async function approveItemRequest(id) {
+  if (!confirm('Approve this item request? A new item will be created in the database.')) return;
+  const { ok, data, error } = await apiFetch(`/api/item-requests/${id}/approve`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
+  });
+  if (!ok) { alert('Error: ' + error); return; }
+  alert(`✓ Item ${data.item_id} created successfully.`);
+  loadItemRequests();
+  loadItemMaster();
+}
+
+async function rejectItemRequest(id) {
+  const note = prompt('Rejection reason (optional):') ?? null;
+  if (note === null) return; // cancelled
+  const { ok, error } = await apiFetch(`/api/item-requests/${id}/reject`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ admin_notes: note })
+  });
+  if (!ok) { alert('Error: ' + error); return; }
+  loadItemRequests();
 }
 
 // ── Export Item Master CSV ─────────────────────────────────────────────────────
@@ -2688,6 +2817,7 @@ async function handleXlFile(input) {
       notes: colMap.notes != null ? String(r[colMap.notes] || '').trim() : '',
       selectedIdx: 0,
       skip: false,
+      requestItem: false, // flag to submit as new item request instead
     };
   }).filter(r => r.query);
 
@@ -2727,40 +2857,47 @@ function renderXlPreview() {
     const altOpts = result.matches.map((m, j) =>
       `<option value="${j}" ${j === r.selectedIdx ? 'selected' : ''}>${escHtml(m.item.name_en)}${m.item.spec ? ' · ' + escHtml(m.item.spec) : ''} (${(m.score*100).toFixed(0)}% diff)</option>`
     ).join('');
-    const matchDisplay = match
+    const hasMatch = !!match;
+    const matchDisplay = hasMatch
       ? `<div style="font-size:11px;color:var(--faint);font-style:italic;margin-bottom:5px">"${escHtml(r.label || r.query)}"</div>
          <div style="font-size:11px;color:var(--faint);margin-bottom:4px">↓ matched to</div>
          <div style="font-size:13px;font-weight:600;color:var(--text)">${escHtml(match.item.name_en)}${match.item.spec ? `<span style="color:var(--faint);margin-left:6px;font-size:11px;font-weight:400">${escHtml(match.item.spec)}</span>` : ''}</div>
          <div style="font-size:11px;color:var(--faint);margin-top:2px">${escHtml(match.item.item_id)} · ${escHtml(match.item.uom)}</div>`
       : `<div style="font-size:11px;color:var(--faint);font-style:italic;margin-bottom:5px">"${escHtml(r.label || r.query)}"</div>
-         <div style="font-size:12px;color:var(--red);font-weight:500">No match found</div>`;
+         <div style="font-size:12px;color:var(--red);font-weight:500">No match found in database</div>
+         ${!r.skip ? `<label style="display:flex;align-items:center;gap:5px;margin-top:6px;cursor:pointer;font-size:12px;color:var(--amber)">
+           <input type="checkbox" ${r.requestItem?'checked':''} onchange="xlRows[${i}].requestItem=this.checked;renderXlPreview()"/>
+           Request admin to add this item
+         </label>` : ''}`;
 
     return `<tr style="border-bottom:1px solid var(--border);${r.skip?'opacity:.4':''}">
       <td style="padding:10px 8px;vertical-align:top;width:52%">
         ${matchDisplay}
-        ${result.matches.length > 1 ? `<select class="field-input field-input-sm" style="margin-top:6px;font-size:11px" onchange="xlRows[${i}].selectedIdx=+this.value;renderXlPreview()">${altOpts}</select>` : ''}
+        ${hasMatch && result.matches.length > 1 ? `<select class="field-input field-input-sm" style="margin-top:6px;font-size:11px" onchange="xlRows[${i}].selectedIdx=+this.value;renderXlPreview()">${altOpts}</select>` : ''}
       </td>
       <td style="padding:10px 8px;vertical-align:middle;text-align:center;width:14%">
-        <span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;color:${conf.color};background:${conf.bg}">${conf.label}</span>
+        <span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;color:${conf.color};background:${conf.bg}">${hasMatch ? conf.label : (r.requestItem ? 'Requested' : 'No match')}</span>
       </td>
       <td style="padding:10px 8px;vertical-align:middle;width:12%">
         <input type="number" min="0.01" step="any" value="${r.qty}" class="field-input field-input-sm" style="width:60px" onchange="xlRows[${i}].qty=+this.value"/>
       </td>
       <td style="padding:10px 8px;vertical-align:middle;width:12%;text-align:center">
         <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;justify-content:center">
-          <input type="checkbox" ${r.skip?'checked':''} onchange="xlRows[${i}].skip=this.checked;renderXlPreview()"/> Skip
+          <input type="checkbox" ${r.skip?'checked':''} onchange="xlRows[${i}].skip=this.checked;xlRows[${i}].requestItem=false;renderXlPreview()"/> Skip
         </label>
       </td>
     </tr>`;
   }).join('');
 
-  const matched  = xlRows.filter((r,i) => !r.skip && xlMatchData[i]?.matches.length).length;
-  const skipped  = xlRows.filter(r => r.skip).length;
-  const noMatch  = xlRows.filter((r,i) => !r.skip && !xlMatchData[i]?.matches.length).length;
+  const matched   = xlRows.filter((r,i) => !r.skip && xlMatchData[i]?.matches.length).length;
+  const skipped   = xlRows.filter(r => r.skip).length;
+  const requested = xlRows.filter((r,i) => !r.skip && r.requestItem && !xlMatchData[i]?.matches.length).length;
+  const noMatch   = xlRows.filter((r,i) => !r.skip && !r.requestItem && !xlMatchData[i]?.matches.length).length;
 
   wrap.innerHTML = `
     <div style="display:flex;gap:14px;margin-bottom:14px;font-size:12px">
       <span style="color:var(--green);font-weight:600">${matched} to add</span>
+      ${requested ? `<span style="color:var(--amber);font-weight:600">${requested} item request(s) pending admin</span>` : ''}
       ${noMatch ? `<span style="color:var(--red);font-weight:600">${noMatch} unmatched</span>` : ''}
       ${skipped ? `<span style="color:var(--faint)">${skipped} skipped</span>` : ''}
     </div>
@@ -2777,7 +2914,7 @@ function renderXlPreview() {
     </div>`;
 }
 
-function confirmXlImport() {
+async function confirmXlImport() {
   let added = 0;
   xlRows.forEach((r, i) => {
     if (r.skip) return;
@@ -2795,13 +2932,30 @@ function confirmXlImport() {
       added++;
     }
   });
+  // Submit item requests for no-match rows that were flagged
+  let requested = 0;
+  const requestPromises = xlRows.map((r, i) => {
+    if (r.skip || !r.requestItem || xlMatchData[i]?.matches.length) return Promise.resolve();
+    requested++;
+    return apiFetch('/api/item-requests', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name_en: r.label || r.query, name_cn: '', category: '', spec: '',
+        uom: r.uom || 'pcs', notes: r.notes || '',
+        source_excel_name: r.query,
+      }),
+    });
+  });
+  await Promise.all(requestPromises);
+
   closeXlImport();
   renderLineItems();
   renderSummary();
-  if (added) {
-    const msgEl = document.getElementById('prMsg');
-    msgEl.innerHTML = `<div class="msg msg-success">${added} item(s) imported from Excel. Review quantities below.</div>`;
-  }
+  const msgEl = document.getElementById('prMsg');
+  const parts = [];
+  if (added)     parts.push(`${added} item(s) imported`);
+  if (requested) parts.push(`${requested} item request(s) sent to admin for approval`);
+  if (parts.length) msgEl.innerHTML = `<div class="msg msg-success">${parts.join(' · ')}. Review quantities below.</div>`;
 }
 </script>
 </body>

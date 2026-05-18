@@ -1037,12 +1037,127 @@ app.delete('/api/users/:id', requireRole('admin'), async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Item Requests ─────────────────────────────────────────────────────────────
+app.post('/api/item-requests', requireAuth, async (req, res) => {
+  try {
+    const { name_en, name_cn, category, spec, uom, notes, source_excel_name } = req.body;
+    if (!name_en) return res.status(400).json({ error: 'name_en required' });
+    const id = ch.newUUID();
+    const now = ch.nowTs(); const ver = Number(ch.version());
+    await ch.insert('item_requests', [{
+      request_id: id, company_id: ch.COMPANY_ID,
+      requested_by_user_id: String(req.session.user.id),
+      requested_by_name: req.session.user.full_name || req.session.user.username,
+      name_en: name_en || '', name_cn: name_cn || '',
+      category_name: category || '', spec: spec || '', uom: uom || 'pcs',
+      notes: notes || '', source_excel_name: source_excel_name || '',
+      status: 'pending', admin_notes: '',
+      version: ver, is_deleted: 0, created_at: now, updated_at: now,
+    }]);
+    res.json({ request_id: id });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/item-requests', requireRole('admin'), async (_req, res) => {
+  try {
+    const rows = await ch.query(
+      `SELECT * FROM item_requests FINAL WHERE is_deleted = 0 ORDER BY created_at DESC`
+    );
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/item-requests/mine', requireAuth, async (req, res) => {
+  try {
+    const rows = await ch.query(
+      `SELECT * FROM item_requests FINAL WHERE is_deleted = 0 AND requested_by_user_id = {uid:String} ORDER BY created_at DESC`,
+      { uid: String(req.session.user.id) }
+    );
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/item-requests/:id/approve', requireRole('admin'), async (req, res) => {
+  try {
+    const rows = await ch.query(
+      `SELECT * FROM item_requests FINAL WHERE request_id = {id:String} AND is_deleted = 0 LIMIT 1`,
+      { id: req.params.id }
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Request not found' });
+    const r = rows[0];
+    // Create the item
+    const last = await ch.query(`SELECT item_id FROM items FINAL WHERE is_deleted = 0 ORDER BY item_id DESC LIMIT 1`);
+    let nextNum = 1;
+    if (last.length) { const m = last[0].item_id.match(/ITEM-(\d+)/); if (m) nextNum = parseInt(m[1], 10) + 1; }
+    const item_id = `ITEM-${String(nextNum).padStart(4, '0')}`;
+    const now = ch.nowTs(); const ver = Number(ch.version());
+    await ch.insert('items', [{
+      item_id, company_id: ch.COMPANY_ID, base_item_id: '', item_code: '',
+      name_en: r.name_en, name_cn: r.name_cn, category_id: '',
+      category_name: r.category_name, spec: r.spec, uom: r.uom,
+      department_id: '', item_type: 'expense', default_gl_account_id: '',
+      min_order_qty: 0, lead_time_days: 0, status: 'active',
+      search_text: `${r.name_en} ${r.name_cn} ${r.category_name}`.toLowerCase(),
+      version: ver, is_deleted: 0, created_at: now, updated_at: now,
+    }]);
+    // Mark request approved
+    await ch.insert('item_requests', [{
+      ...r, status: 'approved', approved_item_id: item_id,
+      admin_notes: req.body.admin_notes || '',
+      version: ver, updated_at: now,
+    }]);
+    await rebuildFuse();
+    res.json({ ok: true, item_id });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/item-requests/:id/reject', requireRole('admin'), async (req, res) => {
+  try {
+    const rows = await ch.query(
+      `SELECT * FROM item_requests FINAL WHERE request_id = {id:String} AND is_deleted = 0 LIMIT 1`,
+      { id: req.params.id }
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Request not found' });
+    const now = ch.nowTs(); const ver = Number(ch.version());
+    await ch.insert('item_requests', [{
+      ...rows[0], status: 'rejected',
+      admin_notes: req.body.admin_notes || '',
+      version: ver, updated_at: now,
+    }]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Start ─────────────────────────────────────────────────────────────────────
 async function start() {
   console.log('Connecting to ClickHouse...');
   const ok = await ch.ping();
   if (!ok) { console.error('ClickHouse unreachable — exiting'); process.exit(1); }
   console.log('ClickHouse OK');
+  // Create item_requests table if not exists
+  await ch.execute(`
+    CREATE TABLE IF NOT EXISTS item_requests (
+      request_id          String,
+      company_id          String,
+      requested_by_user_id String DEFAULT '',
+      requested_by_name   String DEFAULT '',
+      name_en             String DEFAULT '',
+      name_cn             String DEFAULT '',
+      category_name       String DEFAULT '',
+      spec                String DEFAULT '',
+      uom                 String DEFAULT 'pcs',
+      notes               String DEFAULT '',
+      source_excel_name   String DEFAULT '',
+      status              String DEFAULT 'pending',
+      approved_item_id    String DEFAULT '',
+      admin_notes         String DEFAULT '',
+      version             UInt64 DEFAULT toUInt64(toUnixTimestamp64Milli(now64(3))),
+      is_deleted          UInt8  DEFAULT 0,
+      created_at          DateTime64(3, 'Asia/Jakarta') DEFAULT now64(3),
+      updated_at          DateTime64(3, 'Asia/Jakarta') DEFAULT now64(3)
+    ) ENGINE = ReplacingMergeTree(version)
+    ORDER BY (company_id, request_id)
+  `);
   await rebuildFuse();
   console.log(`Fuse index built (${fuse ? 'ok' : 'empty'})`);
   app.listen(PORT, () => console.log(`Procurement app running → http://localhost:${PORT}`));
