@@ -166,7 +166,7 @@ app.get('/api/items/departments', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/items', requireAuth, async (req, res) => {
+app.post('/api/items', requireRole('admin'), async (req, res) => {
   try {
     const { name_en, name_cn, category, uom, department } = req.body;
     if (!name_en) return res.status(400).json({ error: 'name_en required' });
@@ -898,7 +898,7 @@ app.get('/api/po/:id/print', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).send(e.message); }
 });
 
-app.get('/api/po/:id/export', requireAuth, async (req, res) => {
+app.get('/api/po/:id/export', requireRole('purchasing', 'admin'), async (req, res) => {
   try {
     const pos = await ch.query(
       `SELECT
