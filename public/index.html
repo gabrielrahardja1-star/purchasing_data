@@ -645,7 +645,7 @@ textarea.field-input{resize:vertical;min-height:70px}
         <select id="imFilterCat" class="field-input" style="width:auto;min-width:140px" onchange="applyItemMasterFilters()">
           <option value="">All Categories</option>
         </select>
-        <button class="btn-outline" onclick="exportItemMasterCSV()">Export CSV ↓</button>
+        <button class="btn-outline" onclick="exportItemMasterXLS()">Export XLS ↓</button>
         <button class="btn-primary" onclick="showAdminNewItemForm()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
           Add Item
@@ -2542,25 +2542,26 @@ async function rejectItemRequest(id) {
   loadItemRequests();
 }
 
-// ── Export Item Master CSV ─────────────────────────────────────────────────────
-function exportItemMasterCSV() {
+// ── Export Item Master XLS ─────────────────────────────────────────────────────
+function exportItemMasterXLS() {
   const items = allMasterItems;
   if (!items.length) { alert('No items to export.'); return; }
-  const headers = ['item_id','name_en','name_cn','spec','category','uom'];
-  const rows = items.map(it => [
-    it.item_id,
-    it.name_en || '',
-    it.name_cn || '',
-    it.spec || '',
-    it.category_name || it.category || '',
-    it.uom || '',
-  ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
-  const csv = [headers.join(','), ...rows].join('\r\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url;
-  a.download = `item_master_${today()}.csv`; a.click();
-  URL.revokeObjectURL(url);
+  const wsData = [
+    ['Item ID', 'Name (EN)', 'Name (CN)', 'Spec', 'Category', 'UOM'],
+    ...items.map(it => [
+      it.item_id,
+      it.name_en || '',
+      it.name_cn || '',
+      it.spec || '',
+      it.category_name || it.category || '',
+      it.uom || '',
+    ]),
+  ];
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [10, 30, 20, 30, 25, 8].map(wch => ({ wch }));
+  XLSX.utils.book_append_sheet(wb, ws, 'Item Master');
+  XLSX.writeFile(wb, `item_master_${today()}.xlsx`);
 }
 </script>
 
