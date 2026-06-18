@@ -1128,6 +1128,23 @@ app.post('/api/item-requests/:id/reject', requireRole('admin'), async (req, res)
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.delete('/api/item-requests/:id', requireAuth, async (req, res) => {
+  try {
+    const rows = await ch.query(
+      `SELECT * FROM item_requests FINAL WHERE request_id = {id:String} AND is_deleted = 0 LIMIT 1`,
+      { id: req.params.id }
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Request not found' });
+    const row = rows[0];
+    if (row.requested_by_user_id !== String(req.session.userId) && req.session.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const now = ch.nowTs(); const ver = Number(ch.version());
+    await ch.insert('item_requests', [{ ...row, is_deleted: 1, version: ver, updated_at: now }]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Start ─────────────────────────────────────────────────────────────────────
 async function start() {
   console.log('Connecting to ClickHouse...');

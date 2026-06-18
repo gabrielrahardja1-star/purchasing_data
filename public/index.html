@@ -2453,8 +2453,15 @@ async function loadMyItemRequests() {
           <span style="font-size:11px;color:var(--green);font-weight:600">✓ Approved → ${escHtml(r.approved_item_id)}</span>
           <button class="btn-primary btn-sm" onclick="addApprovedRequestItem('${r.approved_item_id}','${r.request_id}')">Add to PR</button>
         ` : statusPill(r.status)}
+        ${r.status === 'rejected' ? `<button onclick="dismissItemRequest('${r.request_id}')" title="Dismiss" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--dim);line-height:1;padding:0 2px" aria-label="Dismiss">×</button>` : ''}
       </div>
     </div>`).join('');
+}
+
+async function dismissItemRequest(request_id) {
+  const { ok, error } = await apiFetch(`/api/item-requests/${request_id}`, { method: 'DELETE' });
+  if (!ok) { alert('Could not dismiss: ' + (error || 'Unknown error')); return; }
+  loadMyItemRequests();
 }
 
 async function addApprovedRequestItem(item_id, request_id) {
