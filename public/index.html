@@ -1930,11 +1930,11 @@ async function loadMDView() {
               </td>
               <td style="font-size:13px">${it.qty_requested ?? it.qty}</td>
               <td><input type="number" id="md-qty-${it.pr_item_id}" value="${it.qty_approved ?? it.qty_requested ?? it.qty}" min="0" step="any"
-                class="field-input field-input-sm" style="width:80px" ${(it.status&&it.status!=='pending')?'disabled':''}/></td>
+                class="field-input field-input-sm" style="width:80px" ${(it.status&&it.status.toLowerCase()!=='pending')?'disabled':''}/></td>
               <td class="text-dim">${it.uom}</td>
-              <td id="md-status-${it.pr_item_id}">${statusPill(it.status||'pending')}</td>
+              <td id="md-status-${it.pr_item_id}">${statusPill((it.status||'pending').toLowerCase())}</td>
               <td id="md-action-${it.pr_item_id}">
-                ${(it.status === 'pending' || !it.status) ? `
+                ${(!it.status || it.status.toLowerCase() === 'pending') ? `
                   <div style="display:flex;gap:6px">
                     <button class="btn-approve" onclick="doItemApprove(${pr.pr_id}, ${it.pr_item_id}, 'approved')">✓</button>
                     <button class="btn-reject"  onclick="doItemApprove(${pr.pr_id}, ${it.pr_item_id}, 'rejected')">✗</button>
@@ -1952,16 +1952,17 @@ function summaryBadge(items) {
 }
 
 async function doItemApprove(pr_id, pr_item_id, action) {
-  const approved_by = currentUser.full_name || currentUser.username;
-  document.getElementById('mdMsg').innerHTML = '';
+  const approved_by = (currentUser && (currentUser.full_name || currentUser.username)) || 'Unknown';
+  const msgEl = document.getElementById('mdMsg');
+  if (msgEl) msgEl.innerHTML = '';
 
-  const qty_approved = parseFloat(document.getElementById(`md-qty-${pr_item_id}`)?.value);
+  const qty_approved = parseFloat(document.getElementById(`md-qty-${pr_item_id}`)?.value) || 0;
   const { ok, data, error } = await apiFetch(`/api/pr/${pr_id}/items/${pr_item_id}/approve`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ approved_by, action, qty_approved })
   });
   if (!ok) {
-    document.getElementById('mdMsg').innerHTML = `<div class="msg msg-error">${error}</div>`; return;
+    alert(`Approval failed: ${error}`); return;
   }
   document.getElementById(`md-status-${pr_item_id}`).innerHTML = statusPill(data.status);
   document.getElementById(`md-action-${pr_item_id}`).innerHTML = '—';
