@@ -957,6 +957,45 @@ app.get('/api/po/:id/export', requireRole('purchasing', 'admin'), async (req, re
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Templates ─────────────────────────────────────────────────────────────────
+app.get('/api/templates', requireAuth, async (_req, res) => {
+  try {
+    const rows = await ch.query(`
+      SELECT
+        t.template_id, t.template_name, t.display_name, t.sort_order,
+        countIf(ti.is_deleted = 0) AS item_count
+      FROM pr_templates t FINAL
+      LEFT JOIN pr_template_items ti FINAL ON ti.template_id = t.template_id
+      WHERE t.is_deleted = 0
+      GROUP BY t.template_id, t.template_name, t.display_name, t.sort_order
+      ORDER BY t.sort_order
+    `);
+    res.json(rows.map(r => ({ ...r, item_count: parseInt(r.item_count) })));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/templates/:id/items', requireAuth, async (req, res) => {
+  try {
+    const rows = await ch.query(
+      `SELECT
+         ti.template_item_id, ti.template_id, ti.item_id,
+         ti.name_en, ti.name_cn, ti.spec, ti.department, ti.uom, ti.default_qty, ti.sort_order
+       FROM pr_template_items ti FINAL
+       WHERE ti.template_id = {tid:String} AND ti.is_deleted = 0
+       ORDER BY ti.department, ti.sort_order`,
+      { tid: req.params.id }
+    );
+    // Group by department
+    const grouped = {};
+    for (const row of rows) {
+      const dept = row.department || 'Other';
+      if (!grouped[dept]) grouped[dept] = [];
+      grouped[dept].push(row);
+    }
+    res.json({ departments: grouped });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Admin deletes ─────────────────────────────────────────────────────────────
 app.delete('/api/pr/:id', requireRole('admin'), async (req, res) => {
   try {
@@ -1174,6 +1213,40 @@ async function start() {
       updated_at          DateTime64(3, 'Asia/Jakarta') DEFAULT now64(3)
     ) ENGINE = ReplacingMergeTree(version)
     ORDER BY (company_id, request_id)
+  `);
+  await ch.execute(`
+    CREATE TABLE IF NOT EXISTS pr_templates (
+      template_id   String,
+      company_id    String,
+      template_name String DEFAULT '',
+      display_name  String DEFAULT '',
+      sort_order    UInt8  DEFAULT 0,
+      version       UInt64 DEFAULT toUInt64(toUnixTimestamp64Milli(now64(3))),
+      is_deleted    UInt8  DEFAULT 0,
+      created_at    DateTime64(3, 'Asia/Jakarta') DEFAULT now64(3),
+      updated_at    DateTime64(3, 'Asia/Jakarta') DEFAULT now64(3)
+    ) ENGINE = ReplacingMergeTree(version)
+    ORDER BY (company_id, template_id)
+  `);
+  await ch.execute(`
+    CREATE TABLE IF NOT EXISTS pr_template_items (
+      template_item_id String,
+      company_id       String,
+      template_id      String,
+      item_id          String DEFAULT '',
+      name_en          String DEFAULT '',
+      name_cn          String DEFAULT '',
+      spec             String DEFAULT '',
+      department       String DEFAULT '',
+      uom              String DEFAULT '',
+      default_qty      Float64 DEFAULT 0,
+      sort_order       UInt16  DEFAULT 0,
+      version          UInt64  DEFAULT toUInt64(toUnixTimestamp64Milli(now64(3))),
+      is_deleted       UInt8   DEFAULT 0,
+      created_at       DateTime64(3, 'Asia/Jakarta') DEFAULT now64(3),
+      updated_at       DateTime64(3, 'Asia/Jakarta') DEFAULT now64(3)
+    ) ENGINE = ReplacingMergeTree(version)
+    ORDER BY (company_id, template_item_id)
   `);
   await rebuildFuse();
   console.log(`Fuse index built (${fuse ? 'ok' : 'empty'})`);

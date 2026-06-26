@@ -297,6 +297,28 @@ textarea.field-input{resize:vertical;min-height:70px}
 .pipeline-preview{margin-top:16px;padding:14px;border-radius:12px;background:rgba(56,189,248,.05);border:1px solid var(--border-strong)}
 .pipeline-preview-label{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
 
+/* ── PR Template Mode ── */
+.pr-mode-toggle{display:flex;gap:0;background:var(--bg-soft);border:1px solid var(--border);border-radius:var(--r-md);padding:3px;margin-bottom:20px;width:fit-content}
+.pr-mode-btn{padding:7px 18px;border-radius:calc(var(--r-md) - 2px);font-size:13px;font-weight:600;color:var(--dim);transition:all .15s}
+.pr-mode-btn.active{background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.tpl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.tpl-card{background:var(--bg-soft);border:1.5px solid var(--border);border-radius:var(--r-lg);padding:18px 16px;cursor:pointer;transition:all .15s;text-align:left;width:100%}
+.tpl-card:hover{border-color:var(--accent);background:rgba(56,189,248,.05)}
+.tpl-card-name{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+.tpl-card-display{font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px}
+.tpl-card-count{font-size:12px;color:var(--faint)}
+.tpl-dept-header{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg-soft);border-radius:var(--r-sm);margin:14px 0 4px;cursor:pointer;user-select:none}
+.tpl-dept-name{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);flex:1}
+.tpl-item-row{display:grid;grid-template-columns:24px 1fr 76px 56px;gap:8px;align-items:center;padding:8px 4px;border-bottom:1px solid var(--border)}
+.tpl-item-row:last-child{border-bottom:none}
+.tpl-item-name{font-size:13px;font-weight:500;color:var(--text)}
+.tpl-item-cn{font-size:11px;color:var(--faint)}
+.tpl-item-spec{font-size:11px;color:var(--dim);margin-top:1px}
+.tpl-sticky-bar{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);margin:16px -26px -26px;padding:14px 26px;display:flex;align-items:center;justify-content:space-between;border-radius:0 0 var(--r-lg) var(--r-lg)}
+.tpl-review-table{width:100%;border-collapse:collapse}
+.tpl-review-table th{padding:7px 10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);border-bottom:1px solid var(--border);text-align:left}
+.tpl-review-table td{padding:8px 10px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:top}
+
 /* ── Approvals ── */
 .approval-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);margin-bottom:16px;overflow:hidden}
 .approval-card-head{
@@ -483,6 +505,83 @@ textarea.field-input{resize:vertical;min-height:70px}
         <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:10px">My Item Requests</div>
         <div id="myItemRequestsList"></div>
       </div>
+
+      <!-- Mode toggle -->
+      <div class="pr-mode-toggle">
+        <button class="pr-mode-btn active" id="modeTemplateBtn" onclick="setPRMode('template')">Use a Template</button>
+        <button class="pr-mode-btn" id="modeManualBtn" onclick="setPRMode('manual')">Build Manually</button>
+      </div>
+
+      <!-- ── Template UI ── -->
+      <div id="tpl-container" class="create-pr-grid" style="align-items:start">
+        <div class="form-card" style="min-height:320px">
+          <!-- Step 1: template cards -->
+          <div id="tpl-step1">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:16px">Choose a Template</div>
+            <div id="tpl-cards-grid" class="tpl-grid"></div>
+          </div>
+          <!-- Step 2: item checklist -->
+          <div id="tpl-step2" style="display:none">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+              <button onclick="tplBack()" style="font-size:13px;color:var(--accent);font-weight:600">← Templates</button>
+              <div style="flex:1;font-size:15px;font-weight:700;color:var(--text)" id="tpl-step2-title"></div>
+            </div>
+            <div id="tpl-checklist"></div>
+            <div class="tpl-sticky-bar">
+              <span id="tpl-sel-count" style="font-size:13px;color:var(--dim)">0 items selected</span>
+              <button class="btn-primary" onclick="tplReview()" id="tpl-review-btn" disabled style="opacity:.5">Review & Submit →</button>
+            </div>
+          </div>
+          <!-- Step 3: review + submit -->
+          <div id="tpl-step3" style="display:none">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+              <button onclick="tplEditSelection()" style="font-size:13px;color:var(--accent);font-weight:600">← Edit selection</button>
+              <div style="flex:1;font-size:15px;font-weight:700;color:var(--text)">Review & Submit</div>
+            </div>
+            <div id="tpl-review-items" style="margin-bottom:20px;max-height:300px;overflow-y:auto"></div>
+            <div style="height:1px;background:var(--border);margin-bottom:20px"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+              <div>
+                <label class="field-label">Requester Name *</label>
+                <input type="text" id="tplRequester" class="field-input" placeholder="Your full name"/>
+              </div>
+              <div>
+                <label class="field-label">Department *</label>
+                <select id="tplDepartment" class="field-input"><option value="">— select —</option></select>
+              </div>
+            </div>
+            <div style="margin-bottom:18px">
+              <label class="field-label">Notes</label>
+              <textarea id="tplNotes" class="field-input" rows="2" placeholder="Optional notes…"></textarea>
+            </div>
+            <div id="tplMsg" style="margin-bottom:12px"></div>
+            <button class="btn-primary" onclick="submitTemplatePR()">Submit Request →</button>
+          </div>
+        </div>
+        <!-- Right sidebar reused -->
+        <div>
+          <div class="summary-card">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:12px">Summary</div>
+            <div class="summary-row">
+              <span>Line items</span>
+              <span style="color:var(--text);font-weight:600" id="tpl-summary-count">0</span>
+            </div>
+            <div class="summary-row" style="border-bottom:none">
+              <span style="color:var(--faint);font-size:12px">Pricing set by Purchasing team</span>
+            </div>
+          </div>
+          <div class="pipeline-preview" style="margin-top:16px">
+            <div class="pipeline-preview-label">Pipeline preview</div>
+            <div id="pipeline-preview-tl-tpl"></div>
+            <div style="font-size:11.5px;color:var(--dim);margin-top:10px;line-height:1.5">
+              Submitting routes this PR to the MD for line-item approval. Once approved, Purchasing creates a PO with the vendor and price.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Manual form (existing) ── -->
+      <div id="tpl-manual-form" style="display:none">
       <div class="create-pr-grid">
         <div class="form-card">
           <div id="prMsg"></div>
@@ -564,6 +663,7 @@ textarea.field-input{resize:vertical;min-height:70px}
           </div>
         </div>
       </div>
+      </div><!-- end tpl-manual-form -->
     </div>
 
     <!-- ── Create PO ── -->
@@ -1042,6 +1142,8 @@ function navTo(page) {
     if (deptSel && deptSel.options.length <= 1) {
       allDepartments.forEach(d => { const o = document.createElement('option'); o.value = d; o.textContent = d; deptSel.appendChild(o); });
     }
+    setPRMode('template');
+    if (!tplState.templates.length) loadTemplates();
   }
   renderPipelinePreview();
 }
@@ -2112,6 +2214,217 @@ async function submitPR() {
   document.getElementById('prRequester').value = '';
   document.getElementById('prDepartment').value = '';
   document.getElementById('prNotes').value = '';
+}
+
+// ── PR Templates ──────────────────────────────────────────────────────────────
+let prMode = 'template';
+const tplState = { templates: [], current: null, items: {}, selections: {} };
+
+function setPRMode(mode) {
+  prMode = mode;
+  document.getElementById('modeTemplateBtn').classList.toggle('active', mode === 'template');
+  document.getElementById('modeManualBtn').classList.toggle('active', mode === 'manual');
+  document.getElementById('tpl-container').style.display   = mode === 'template' ? '' : 'none';
+  document.getElementById('tpl-manual-form').style.display = mode === 'manual'   ? '' : 'none';
+}
+
+async function loadTemplates() {
+  const { ok, data } = await apiFetch('/api/templates');
+  if (!ok) return;
+  tplState.templates = data;
+  renderTemplateCards();
+  // Render pipeline preview in template sidebar
+  const el = document.getElementById('pipeline-preview-tl-tpl');
+  if (el) el.innerHTML = timeline(0);
+}
+
+function renderTemplateCards() {
+  const grid = document.getElementById('tpl-cards-grid');
+  if (!grid) return;
+  grid.innerHTML = tplState.templates.map(t => `
+    <button class="tpl-card" onclick="selectTemplate('${t.template_id}',${JSON.stringify(t.display_name)},${JSON.stringify(t.template_name)})">
+      <div class="tpl-card-name">${t.template_name}</div>
+      <div class="tpl-card-display">${t.display_name}</div>
+      <div class="tpl-card-count">${t.item_count} items</div>
+    </button>`).join('');
+}
+
+async function selectTemplate(id, displayName, templateName) {
+  document.getElementById('tpl-step1').style.display = 'none';
+  document.getElementById('tpl-step2').style.display = '';
+  document.getElementById('tpl-step2-title').textContent = displayName;
+  document.getElementById('tpl-checklist').innerHTML = '<div style="color:var(--faint);font-size:13px;padding:20px 0">Loading…</div>';
+
+  if (!tplState.items[id]) {
+    const { ok, data } = await apiFetch(`/api/templates/${id}/items`);
+    if (!ok) { document.getElementById('tpl-checklist').innerHTML = '<div class="msg msg-error">Failed to load template.</div>'; return; }
+    tplState.items[id] = data.departments;
+  }
+  tplState.current = id;
+  if (!tplState.selections[id]) tplState.selections[id] = {};
+  renderChecklist(id);
+}
+
+function renderChecklist(id) {
+  const depts = tplState.items[id];
+  const sels  = tplState.selections[id];
+  let html = '';
+  for (const [dept, items] of Object.entries(depts)) {
+    const selectableItems = items.filter(i => i.item_id);
+    const allSel = selectableItems.length > 0 && selectableItems.every(i => sels[i.template_item_id]);
+    const deptKey = dept.replace(/\W/g, '_');
+    html += `
+      <div class="tpl-dept-header" onclick="toggleDeptCollapse('dept-${deptKey}')">
+        <input type="checkbox" ${allSel ? 'checked' : ''} ${selectableItems.length === 0 ? 'disabled' : ''}
+          onclick="event.stopPropagation();toggleDeptAll('${id}',${JSON.stringify(dept)},this.checked)"
+          style="width:16px;height:16px;cursor:pointer"/>
+        <span class="tpl-dept-name">${dept}</span>
+        <span style="font-size:11px;color:var(--faint)">${items.length} items ▾</span>
+      </div>
+      <div id="dept-${deptKey}">`;
+    for (const it of items) {
+      const checked  = sels[it.template_item_id] ? 'checked' : '';
+      const noMatch  = !it.item_id;
+      const curQty   = sels[it.template_item_id]?.qty ?? (it.default_qty > 0 ? it.default_qty : 1);
+      html += `
+        <div class="tpl-item-row">
+          <input type="checkbox" ${checked} ${noMatch ? 'disabled title="Not in item master — contact admin"' : ''}
+            style="width:16px;height:16px;cursor:${noMatch ? 'not-allowed' : 'pointer'}"
+            onchange="tplToggleItem('${id}','${it.template_item_id}',this.checked)"/>
+          <div>
+            <div class="tpl-item-name">${it.name_en}${noMatch ? ' <span style="font-size:10px;background:var(--amber);color:#fff;border-radius:3px;padding:1px 4px">⚠ not in master</span>' : ''}</div>
+            ${it.name_cn ? `<div class="tpl-item-cn">${it.name_cn}</div>` : ''}
+            ${it.spec    ? `<div class="tpl-item-spec">${it.spec}</div>` : ''}
+          </div>
+          <input type="number" min="0.01" step="any" value="${curQty}"
+            class="field-input field-input-sm" style="width:68px" ${noMatch ? 'disabled' : ''}
+            onchange="tplSetQty('${id}','${it.template_item_id}',+this.value)"/>
+          <span style="font-size:12px;color:var(--dim)">${it.uom}</span>
+        </div>`;
+    }
+    html += `</div>`;
+  }
+  document.getElementById('tpl-checklist').innerHTML = html;
+  updateTplSelCount();
+}
+
+function toggleDeptCollapse(elId) {
+  const el = document.getElementById(elId);
+  if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+function toggleDeptAll(templateId, dept, checked) {
+  const sels = tplState.selections[templateId];
+  for (const it of (tplState.items[templateId][dept] || [])) {
+    if (!it.item_id) continue;
+    if (checked) { sels[it.template_item_id] = { ...it, qty: it.default_qty > 0 ? it.default_qty : 1 }; }
+    else { delete sels[it.template_item_id]; }
+  }
+  renderChecklist(templateId);
+}
+
+function tplToggleItem(templateId, itemId, checked) {
+  const sels = tplState.selections[templateId];
+  if (checked) {
+    const it = Object.values(tplState.items[templateId]).flat().find(i => i.template_item_id === itemId);
+    if (it) sels[itemId] = { ...it, qty: sels[itemId]?.qty ?? (it.default_qty > 0 ? it.default_qty : 1) };
+  } else {
+    delete sels[itemId];
+  }
+  updateTplSelCount();
+}
+
+function tplSetQty(templateId, itemId, qty) {
+  const sels = tplState.selections[templateId];
+  if (sels[itemId]) sels[itemId].qty = qty;
+}
+
+function updateTplSelCount() {
+  const count = Object.keys(tplState.selections[tplState.current] || {}).length;
+  const countEl = document.getElementById('tpl-sel-count');
+  const btn     = document.getElementById('tpl-review-btn');
+  const sumEl   = document.getElementById('tpl-summary-count');
+  if (countEl) countEl.textContent = `${count} item${count !== 1 ? 's' : ''} selected`;
+  if (sumEl)   sumEl.textContent   = count;
+  if (btn) { btn.disabled = count === 0; btn.style.opacity = count === 0 ? '.5' : '1'; }
+}
+
+function tplBack() {
+  document.getElementById('tpl-step2').style.display = 'none';
+  document.getElementById('tpl-step1').style.display = '';
+}
+
+function tplReview() {
+  const sels = Object.values(tplState.selections[tplState.current] || {});
+  if (!sels.length) return;
+
+  let html = `<table class="tpl-review-table"><thead><tr>
+    <th>Item</th><th style="width:60px;text-align:center">Qty</th><th style="width:60px">UOM</th>
+  </tr></thead><tbody>`;
+  for (const it of sels) {
+    html += `<tr>
+      <td><div style="font-weight:500">${it.name_en}</div>
+          ${it.name_cn ? `<div style="font-size:11px;color:var(--faint)">${it.name_cn}</div>` : ''}
+          ${it.spec    ? `<div style="font-size:11px;color:var(--dim)">${it.spec}</div>` : ''}</td>
+      <td style="text-align:center">${it.qty}</td>
+      <td style="color:var(--dim)">${it.uom}</td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('tpl-review-items').innerHTML = html;
+  document.getElementById('tpl-summary-count').textContent = sels.length;
+
+  // Pre-fill dept from most common dept in selection
+  const deptCounts = {};
+  sels.forEach(it => { deptCounts[it.department] = (deptCounts[it.department] || 0) + 1; });
+  const topDept = Object.entries(deptCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+  const deptSel = document.getElementById('tplDepartment');
+  if (deptSel && deptSel.options.length <= 1) {
+    allDepartments.forEach(d => { const o = document.createElement('option'); o.value = d; o.textContent = d; deptSel.appendChild(o); });
+  }
+  if (deptSel && topDept) [...deptSel.options].forEach(o => { o.selected = (o.value === topDept); });
+
+  const existing = document.getElementById('prRequester')?.value;
+  if (existing) document.getElementById('tplRequester').value = existing;
+
+  document.getElementById('tpl-step2').style.display = 'none';
+  document.getElementById('tpl-step3').style.display = '';
+}
+
+function tplEditSelection() {
+  document.getElementById('tpl-step3').style.display = 'none';
+  document.getElementById('tpl-step2').style.display = '';
+}
+
+async function submitTemplatePR() {
+  const requested_by = document.getElementById('tplRequester').value.trim();
+  const department   = document.getElementById('tplDepartment').value;
+  const notes        = document.getElementById('tplNotes').value.trim();
+  const msgEl        = document.getElementById('tplMsg');
+  if (!requested_by) { msgEl.innerHTML = '<div class="msg msg-error">Please fill in Requester Name.</div>'; return; }
+  if (!department)   { msgEl.innerHTML = '<div class="msg msg-error">Please select a Department.</div>'; return; }
+  const sels = Object.values(tplState.selections[tplState.current] || {});
+  if (!sels.length)  { msgEl.innerHTML = '<div class="msg msg-error">No items selected.</div>'; return; }
+  const items = sels.map(it => ({
+    item_id: it.item_id, qty: it.qty || 1, uom: it.uom,
+    notes: '', department, est_unit_price: 0,
+  }));
+  const { ok, data, error } = await apiFetch('/api/pr', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requested_by, department, notes, items, requester_id: String(currentUser.id) }),
+  });
+  if (!ok) { msgEl.innerHTML = `<div class="msg msg-error">${error}</div>`; return; }
+  msgEl.innerHTML = `<div class="msg msg-success">✓ PR <strong>${data.pr_number}</strong> submitted successfully.</div>`;
+  tplState.selections[tplState.current] = {};
+  setTimeout(() => {
+    document.getElementById('tpl-step3').style.display = 'none';
+    document.getElementById('tpl-step1').style.display = '';
+    msgEl.innerHTML = '';
+    document.getElementById('tplRequester').value = '';
+    document.getElementById('tplDepartment').value = '';
+    document.getElementById('tplNotes').value = '';
+    document.getElementById('tpl-summary-count').textContent = '0';
+  }, 2000);
 }
 
 // ── Item Master ────────────────────────────────────────────────────────────────
