@@ -2242,7 +2242,7 @@ function renderTemplateCards() {
   const grid = document.getElementById('tpl-cards-grid');
   if (!grid) return;
   grid.innerHTML = tplState.templates.map(t => `
-    <button class="tpl-card" onclick="selectTemplate('${t.template_id}',${JSON.stringify(t.display_name)},${JSON.stringify(t.template_name)})">
+    <button class="tpl-card" onclick="selectTemplate('${t.template_id}','${t.display_name}','${t.template_name}')">
       <div class="tpl-card-name">${t.template_name}</div>
       <div class="tpl-card-display">${t.display_name}</div>
       <div class="tpl-card-count">${t.item_count} items</div>
