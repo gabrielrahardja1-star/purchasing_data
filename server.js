@@ -787,7 +787,7 @@ app.get('/api/po/:id/print', requireAuth, async (req, res) => {
          poi.item_id, poi.pr_item_id, poi.ordered_qty, poi.received_qty,
          poi.uom AS uom, poi.unit_price, poi.total_price,
          poi.status AS status, poi.notes AS notes,
-         i.name_en, i.name_cn, pr.pr_number, pr.department AS pr_department
+         i.name_en, i.name_cn, pr.pr_number, pr.department_id AS pr_department
        FROM purchase_order_items poi FINAL
        JOIN items i FINAL ON i.item_id = poi.item_id AND i.is_deleted = 0
        LEFT JOIN purchase_request_items pri FINAL ON toString(pri.pr_item_id) = poi.pr_item_id AND pri.is_deleted = 0
