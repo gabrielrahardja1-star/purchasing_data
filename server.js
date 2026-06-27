@@ -478,6 +478,9 @@ app.post('/api/pr/:id/items/:itemId/approve', requireRole('md', 'admin'), async 
     const approvedQty = action === 'approved'
       ? (qty_approved ?? parseFloat(prItem.requested_qty))
       : 0;
+    if (action === 'approved' && (isNaN(approvedQty) || approvedQty <= 0)) {
+      return res.status(400).json({ error: 'Approved quantity must be greater than 0 / 批准数量必须大于0' });
+    }
 
     await ch.insert('purchase_request_items', [{
       ...prItem, status: action, approved_qty: approvedQty, version: ver, updated_at: now,
@@ -784,7 +787,7 @@ app.get('/api/po/:id/print', requireAuth, async (req, res) => {
          poi.item_id, poi.pr_item_id, poi.ordered_qty, poi.received_qty,
          poi.uom AS uom, poi.unit_price, poi.total_price,
          poi.status AS status, poi.notes AS notes,
-         i.name_en, i.name_cn, pr.pr_number
+         i.name_en, i.name_cn, pr.pr_number, pr.department AS pr_department
        FROM purchase_order_items poi FINAL
        JOIN items i FINAL ON i.item_id = poi.item_id AND i.is_deleted = 0
        LEFT JOIN purchase_request_items pri FINAL ON toString(pri.pr_item_id) = poi.pr_item_id AND pri.is_deleted = 0
@@ -792,6 +795,25 @@ app.get('/api/po/:id/print', requireAuth, async (req, res) => {
        WHERE poi.po_id = {poid:String} AND poi.is_deleted = 0`,
       { poid: po.po_id }
     );
+
+    const DEPT_CN = {
+      'Coal Extraction':'采煤队','Conveyor':'皮带队','Drainage':'抽放队',
+      'Electromechanical':'机电队','Excavation':'掘机队','Extraction':'抽采队',
+      'Installation':'安装队','Maintenance':'维修队','Material Preparation':'下料队',
+      'Mechanical Repair':'机修队','Monitoring':'监测队','Power Supply':'地面供电',
+      'Production':'生产队','Pump Room':'泵房','Reinforced Conveyor Belt':'强力皮带',
+      'Recovery':'回收队','Reserve':'预备队','Shotcrete':'喷浆队',
+      'Supporting':'辅助队','Track Rail':'轨道队','Tunnelling':'掘进队',
+      'Ventilation':'通风队','Welding':'电焊房',
+    };
+    const UOM_CN_PRINT = {
+      Bag:'袋',Bar:'根',Barrel:'桶',Bottle:'瓶',Box:'箱',Bundle:'捆',Carton:'纸箱',
+      Coil:'卷',Cylinder:'气瓶',Item:'件',Kg:'千克',Litre:'升',M:'米',Pack:'包',
+      Pair:'副',Pcs:'个',pcs:'个',Rod:'棒',Roll:'卷',Set:'套',Sheet:'张',
+      Ton:'吨',Tube:'支',Unit:'台',
+    };
+    const purposeDept = lineItems.find(it => it.pr_department)?.pr_department || '';
+    const purposeCN   = DEPT_CN[purposeDept] || '';
 
     const PPH_LABELS = {
       pph23: 'PPH 23 Jasa Badan (2%)', pph15: 'PPH 15 Jasa Tongkang (1,2%)',
@@ -804,15 +826,25 @@ app.get('/api/po/:id/print', requireAuth, async (req, res) => {
     const grandTotal = subtotal + vatAmount - pphAmount;
     const fmt = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
 
-    const itemRows = lineItems.map(it => `
+    const BLUE = '#1565C0';
+
+    const itemRows = lineItems.map(it => {
+      const uomCN = UOM_CN_PRINT[it.uom];
+      const uomDisplay = uomCN ? `${it.uom} / ${uomCN}` : it.uom;
+      return `
       <tr>
         <td>${it.item_id}</td>
         <td>${it.name_en}${it.name_cn ? '<br><span class="cn">' + it.name_cn + '</span>' : ''}</td>
-        <td class="num">${parseFloat(it.ordered_qty).toLocaleString('id-ID')}</td>
+        <td class="num">${parseFloat(it.ordered_qty).toLocaleString('id-ID')} ${uomDisplay}</td>
         <td class="num">${fmt(it.unit_price)}</td>
         <td class="num">0</td>
         <td class="num">${fmt(it.total_price)}</td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
+
+    const purposeHtml = purposeDept
+      ? `<div class="to-box" style="margin-top:10px"><div class="label">Purpose / 采购目的</div><div class="vendor" style="font-size:10.5pt">${purposeDept}${purposeCN ? ' / ' + purposeCN : ''}</div></div>`
+      : '';
 
     const html = `<!DOCTYPE html>
 <html lang="id"><head><meta charset="UTF-8"><title>PO ${po.po_number}</title>
@@ -823,21 +855,20 @@ app.get('/api/po/:id/print', requireAuth, async (req, res) => {
   .company-name { font-size:22pt; font-weight:700; }
   .company-addr { font-size:8.5pt; color:#444; line-height:1.5; margin-top:4px; max-width:320px; }
   .logo-block { display:flex; align-items:center; gap:10px; }
-  .logo-circle { width:52px; height:52px; border-radius:50%; background:#1a1a2e; display:flex; align-items:center; justify-content:center; }
-  .logo-circle span { color:#fff; font-weight:700; font-size:9pt; text-align:center; line-height:1.2; }
-  .divider { border:none; border-top:2px solid #111; margin:10px 0; }
+  .logo-img { height:64px; width:auto; object-fit:contain; }
+  .divider { border:none; border-top:2.5px solid ${BLUE}; margin:10px 0; }
   .two-col { display:flex; justify-content:space-between; gap:20px; margin-bottom:14px; }
   .to-box .label { font-size:9pt; color:#666; margin-bottom:4px; }
   .to-box .vendor { font-weight:600; font-size:11pt; margin-bottom:3px; }
-  .po-box { border:1.5px solid #111; padding:10px 14px; min-width:240px; }
-  .po-box .title { font-size:18pt; font-weight:700; margin-bottom:8px; }
+  .po-box { border:1.5px solid ${BLUE}; padding:10px 14px; min-width:240px; }
+  .po-box .title { font-size:18pt; font-weight:700; margin-bottom:8px; color:${BLUE}; }
   .po-meta { display:grid; grid-template-columns:auto 1fr; gap:3px 8px; font-size:9.5pt; }
   .po-meta .key { color:#555; } .po-meta .val { font-weight:600; }
   table.items { width:100%; border-collapse:collapse; margin-bottom:16px; font-size:9.5pt; }
-  table.items thead tr { background:#2c2c2c; color:#fff; }
+  table.items thead tr { background:${BLUE}; color:#fff; }
   table.items th { padding:6px 8px; text-align:left; font-weight:600; }
   table.items th.num, table.items td.num { text-align:right; }
-  table.items tbody tr:nth-child(even) { background:#f5f5f5; }
+  table.items tbody tr:nth-child(even) { background:#EBF2FF; }
   table.items td { padding:5px 8px; border-bottom:1px solid #ddd; vertical-align:top; }
   .cn { font-size:8.5pt; color:#666; }
   .bottom { display:flex; gap:24px; justify-content:flex-end; }
@@ -845,23 +876,26 @@ app.get('/api/po/:id/print', requireAuth, async (req, res) => {
   .notes-box .label { font-weight:700; font-size:9pt; color:#111; margin-bottom:4px; }
   .totals { min-width:280px; border-top:1px solid #ccc; padding-top:8px; }
   .total-row { display:flex; justify-content:space-between; font-size:9.5pt; padding:3px 0; }
-  .total-row.grand { font-weight:700; font-size:11pt; background:#2c2c2c; color:#fff; padding:6px 8px; margin-top:4px; }
+  .total-row.grand { font-weight:700; font-size:11pt; background:${BLUE}; color:#fff; padding:6px 8px; margin-top:4px; }
   .sigs { display:flex; justify-content:flex-end; gap:60px; margin-top:40px; }
   .sig-block { text-align:center; min-width:140px; }
   .sig-block .sig-label { font-size:9pt; margin-bottom:36px; }
   .sig-block .sig-line { border-top:1.5px solid #111; padding-top:4px; font-size:9pt; font-weight:600; }
-  .print-btn { position:fixed; bottom:20px; right:20px; padding:10px 20px; background:#2c2c2c; color:#fff; border:none; border-radius:6px; font-size:11pt; cursor:pointer; z-index:999; }
+  .print-btn { position:fixed; bottom:20px; right:20px; padding:10px 20px; background:${BLUE}; color:#fff; border:none; border-radius:6px; font-size:11pt; cursor:pointer; z-index:999; }
   @media print { .print-btn { display:none; } body { padding:0; } @page { margin:14mm 12mm; size:A4 portrait; } }
 </style></head><body>
 <button class="print-btn" onclick="window.print()">⬇ Simpan / Print PDF</button>
 <div class="header"><div class="logo-block">
-  <div class="logo-circle"><span>Merge<br>Coal</span></div>
+  <img class="logo-img" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wgARCAHbAg0DASIAAhEBAxEB/8QAGgABAAMBAQEAAAAAAAAAAAAAAAQFBgMBAv/EABgBAQEBAQEAAAAAAAAAAAAAAAADAgEE/9oADAMBAAIQAxAAAAK9AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPD1xOdnEdnEdg6AAAfHw52cR2cR2cuoDoAAAAAAAAAAAAAAAAAAACrnUtJhWQAFpMo7uNvRjYDz2D3kHmeiAOAe3dHLxu1EbAAAAAAAAAAAAAAAAAAACO5AjHogHeAALKt+udvnz9ef0AeUc2vrIKTAAAuu1RbwuGdAAAAAAAAAAAAAAAAAAKafU0kFZgD6PlN8zqGmD7sa2ylV8fdbzsLw9HnAAAAXFP3zq5ELgAAAAAAAAAAAAAAAACG5A5HpgDgCyg3c6eiVQAOdJKiWiG8AD7PgAAFtKpLuFgzsAAAAAAAAAAAAAAADykm11ZBSYA7Ozph5rg6A49qjWYwvAAD26g2ca0fO1qqYDWQFnWfedXrz2FwAAAAAAAAAAAAAAHz9V3cwvk9EAAFtBuJUCdQAI9P34XgGsgPfLDnZv2ee6luo2uVAvAAOrGfQ3kLfQxsAAAAAAAAAAAAAD4o5kK0Q3gASudn9zz3B0BFlUmscheIAH3dw50bBjYFPHuaa0A3kBPge87fufTz3B0AAAAAAAAAAAB56KDybC9HnDvAF3AtJVCdAB4Q6z7+LwDWQHTna51LELgAKm25dzSPfPRAAelhP59PP6A50AAAAAAAAAAAAD4o7+u3OALSe+dXbfpAQtPQpueg6gT4nc1SyVnWrIVqyEO649p0DOgBxc7IDXOcKbCrINZTod5jf0I2AAAAAAAAAAAAAAfP0KH5sa70ecO8AW9R2zq6ELgAAAAAAKadVVkFJgD7Jth575/QHOgAAAAAAAAAAAAAAeUd7C3isFogAWsuju4W9GdgAAAAPPYXeQeR6IA4HSzgXcqeiVQAAAAAAAAAAAAAAAAKTld8qyqVs7ypWwqbLp9Z1IE6AAAAAeUd1w1ipWymKlbCpWw8lkag6AAAAAAAAAAAOR1AAAcuoAAAAAAAAAAAQ4pbIE8AAAAAAEUlI0kAAAAAAAZ3RZ080WDmmwR5Ar4NCdttg94AHPoADw9eeh54fQAD4+j0Hxl5FOfPuntDBy9JmjWd6q1ADn0AB8H289GV1WVPvT5jTgAAAAAADO6LOlP1+dmYqX1gnGTpIZn95g94Q8v72K+Xc5w2UOvnmc956Q6/MzHHvlvYmbs6uzNJmpudPPrSUha3mE2Rj7Wm0JeAee8jqrZxEzCYVk2/wA8avvlLcr6dpCg56DOmpqbWqPvT5jTgAAAAAADO6LOlVt8Rtx8fYUd5Rmf3eE3hg7XjXnW3jemoqZUUzm6wu6IWP3WKNfJyc8h9Km2Pqv0GVLDlytS4lZ/QGN+r/KG79x9kX2a5Vh97OruzBazPemxofukFxHtzM7XBXZosJbU5qKq1qj70+Y04AAAAAAApLsZPWAAqLcY/YBxzuoGJlawRY9kMjrgQZ0UzPxeyjK2NbdF7TXIxjZikuwQJ4yUTcDH3VsAI+c1YxNjpR8fYUtJtRkfjYiur9CKC/AAAAAAAAAAAAAAAABRXowfm3+DM6z7AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH//aAAwDAQACAAMAAAAh888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888847/8A9PPPM9//AHzzzzzzzzzzzzzzzzzzzzyxY4rXzzwQ44bzzzzzzzzzzzzzzzzzzzz/AOe++l88K+++TU8888888888888888888zW+/Ge04n+++uh888888888888888888qkeim888L++hW+CT88888888888888888qW+g3884v+CPy2OW08888888888888889n+6X888B+6R98W+IQ888888888888888R2+Cf88nC6yc88/2uJ988888888888888RW6t888u+6Sc88/X2rc88888888888888LeQw287OOOc88/wD6x888888888888888sB2Ox88888888pGeB08888888888888888dW+Cf8888884E+8P88888888888888888sAxxU888888bBxFf88888888848880888888888884w8888884088888888A4oo888w0088488IY088884s888888888MswoMIkcIsAsMMY8884scAIA88888888888ooAUc8I8IYQUE8wEMwI4YA8888888888888scMcoAosMcsM88Ms88ssc88888888888888888Is888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888//2gAMAwEAAgADAAAAEPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPONssvPPPNOsv/PPPPPPPPPPPPPPPPPPPPKa891PPOes8yfPPPPPPPPPPPPPPPPPPPPY4wwzdPBAww7vfPPPPPPPPPPPPPPPPPPL6wwN78quQww02/PPPPPPPPPPPPPPPPPO2o31fPPFAw26w/wBvzzzzzzzzzzzzzzzzy2sNr7zy1AP96UvPrzzzzzzzzzzzzzzzyvgMffzzzUMf/wDqrD1+888888888888888GLD/988x/HP088LLTn/8APPPPPPPPPPPPLBqx1PPOOgx6XPPPoi1FvPPPPPPPPPPPPPH47ut/KP8A74bzznPQcHzzzzzzzzzzzzzzzz8vM/Tzzzzzzw3uP/bzzzzzzzzzzzzzzzzisP8A+8888889aDBM888888888888888888/MMz888888C+M528888888888884888088888888888w48888888088888888gw80444804w848gIQc48888w888888888sY0U0w4QU4IsgsA8o4wQk8kc888888888888UIEAUo4oQAQwQws88kU4888888888sc88M8cMcswk8s8s888sMcc8M888888888888888888gk888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888//xAAqEQABAgUDBQACAgMAAAAAAAABAgMABBESMRATQRQgIUBRMGEVQ0JwgP/aAAgBAgEBPwD/AFfmNtXwxtq+GLF/D22qPkCLF/DG2r4YIIz60izVV547JxnbXUYOrbZWoJEJSlAAGNZ1m9FwyPVSkqUAIabS2kJHZMNbiKc8QRTwdJBm0Xnnsz4iZa2l049SQa/sOqlACpjq2vsdW19iZsK6oNaww0XFgQAALRjtm2dxFRkem22VqtHMIQEJAHGs89QWDnPZJM2IuOTqVBIqrXMTbO2v9H0pFmgvPONVqCE1PELWVqKjrLNbq6cRTWdeuVaOIlXdxHnOsyzuopzxGPQZaLiwkQEhIoONZ93/AAHZKNbaKnJ1mHQ2gmCSTUxKu7a/OD2TjO2u4YPoSLNiLzk6uuBCSowpRUok6yrO4vzgdk69eugwNZN69FDkavtBxFsEEGh/Ow4FoBGs89cqwYHZLNbSAOdZp3bR+z2S7u2uvEVr5GhNPJh9YWsqH55J61VpwdHCQCU+TBlXiakQtpSDRQpowpCV1XxHXNR1zUdc1Ey/uqq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" alt="MergeCoal Logo" />
   <div><div class="company-name">PT Merge Mining Industri</div>
   <div class="company-addr">Gedung The Honey Lady, Lt. 15 Unit 1503, Pluit, Penjaringan, Jakarta Utara<br>Kota Administrasi Jakarta Utara DKI Jakarta 12190<br>Indonesia</div></div>
 </div></div>
 <hr class="divider">
 <div class="two-col">
-  <div class="to-box"><div class="label">To</div><div class="vendor">${po.vendor_name}</div></div>
+  <div>
+    <div class="to-box"><div class="label">To / 供应商</div><div class="vendor">${po.vendor_name}</div></div>
+    ${purposeHtml}
+  </div>
   <div class="po-box"><div class="title">Purchase Order</div>
   <div class="po-meta">
     <span class="key">Number</span><span class="val">: ${po.po_number}</span>
@@ -869,14 +903,14 @@ app.get('/api/po/:id/print', requireAuth, async (req, res) => {
   </div></div>
 </div>
 <table class="items"><thead><tr>
-  <th style="width:110px">Item Code</th><th>Item Name</th>
-  <th class="num" style="width:90px">Quantity</th>
+  <th style="width:110px">Item Code</th><th>Item Name / 品名</th>
+  <th class="num" style="width:120px">Qty / UOM</th>
   <th class="num" style="width:130px">@Price</th>
   <th class="num" style="width:80px">Discount</th>
   <th class="num" style="width:140px">Total</th>
 </tr></thead><tbody>${itemRows}</tbody></table>
 <div class="bottom">
-  <div class="notes-box"><div class="label">Notes</div><div>${po.notes || '—'}</div></div>
+  <div class="notes-box"><div class="label">Notes / 备注</div><div>${po.notes || '—'}</div></div>
   <div class="totals">
     <div class="total-row"><span>Sub Total</span><span>${fmt(subtotal)}</span></div>
     <div class="total-row"><span>Diskon</span><span>0</span></div>

@@ -132,6 +132,10 @@ nav{display:flex;flex-direction:column;gap:2px}
 
 /* ── Filter pills ── */
 .filter-pills{display:flex;align-items:center;gap:6px;margin-bottom:18px}
+.sort-bar{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--faint);font-weight:600;letter-spacing:.02em;margin-bottom:12px}
+.sort-btn{padding:4px 10px;border-radius:var(--r-sm);font-size:11.5px;font-weight:600;border:1px solid var(--border);color:var(--dim);background:transparent;cursor:pointer;transition:.12s;white-space:nowrap}
+.sort-btn:hover{border-color:var(--border-strong);color:var(--text)}
+.sort-btn.active{background:var(--surface2);color:var(--accent);border-color:var(--accent)}
 .filter-pill{
   padding:7px 14px;border-radius:999px;font-size:12px;font-weight:600;
   border:1px solid var(--border);color:var(--dim);background:transparent;transition:.12s;
@@ -449,6 +453,12 @@ textarea.field-input{resize:vertical;min-height:70px}
         </button>
       </div>
       <div id="prListMsg"></div>
+      <div class="sort-bar">
+        Sort:
+        <button class="sort-btn" id="prSort-pr_number" onclick="togglePRSort('pr_number')">PR # ↕</button>
+        <button class="sort-btn" id="prSort-date_requested" onclick="togglePRSort('date_requested')">Date ↕</button>
+        <button class="sort-btn" id="prSort-status" onclick="togglePRSort('status')">Status ↕</button>
+      </div>
       <div class="surface">
         <table>
           <thead class="tbl-head">
@@ -717,6 +727,13 @@ textarea.field-input{resize:vertical;min-height:70px}
     <!-- ── PO List ── -->
     <div id="page-poList" class="page">
       <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:18px">
+        <div class="sort-bar" style="margin-bottom:0;margin-right:auto">
+          Sort:
+          <button class="sort-btn" id="poSort-po_number" onclick="togglePOSort('po_number')">PO # ↕</button>
+          <button class="sort-btn" id="poSort-date_created" onclick="togglePOSort('date_created')">Date ↕</button>
+          <button class="sort-btn" id="poSort-vendor_name" onclick="togglePOSort('vendor_name')">Vendor ↕</button>
+          <button class="sort-btn" id="poSort-status" onclick="togglePOSort('status')">Status ↕</button>
+        </div>
         <div class="list-search-wrap">
           <span class="list-search-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></span>
           <input type="text" id="poSearch" class="field-input" placeholder="Search PO number, vendor, or item…" oninput="onPOSearchInput(this.value)" autocomplete="off"/>
@@ -1010,7 +1027,52 @@ textarea.field-input{resize:vertical;min-height:70px}
 <script>
 // ── State ──────────────────────────────────────────────────────────────────────
 let lineItems = [];
-const allDepartments = ['Production','CWP','Workshop','Construction','Powerplant','WTP','Wielding'];
+const DEPARTMENTS = {
+  'Coal Extraction':          { cn: '采煤队' },
+  'Conveyor':                 { cn: '皮带队' },
+  'Drainage':                 { cn: '抽放队' },
+  'Electromechanical':        { cn: '机电队' },
+  'Excavation':               { cn: '掘机队' },
+  'Extraction':               { cn: '抽采队' },
+  'Installation':             { cn: '安装队' },
+  'Maintenance':              { cn: '维修队' },
+  'Material Preparation':     { cn: '下料队' },
+  'Mechanical Repair':        { cn: '机修队' },
+  'Monitoring':               { cn: '监测队' },
+  'Power Supply':             { cn: '地面供电' },
+  'Production':               { cn: '生产队' },
+  'Pump Room':                { cn: '泵房' },
+  'Reinforced Conveyor Belt': { cn: '强力皮带' },
+  'Recovery':                 { cn: '回收队' },
+  'Reserve':                  { cn: '预备队' },
+  'Shotcrete':                { cn: '喷浆队' },
+  'Supporting':               { cn: '辅助队' },
+  'Track Rail':               { cn: '轨道队' },
+  'Tunnelling':               { cn: '掘进队' },
+  'Ventilation':              { cn: '通风队' },
+  'Welding':                  { cn: '电焊房' },
+};
+const allDepartments = Object.keys(DEPARTMENTS);
+function deptLabel(en) {
+  if (!en) return '';
+  const cn = DEPARTMENTS[en]?.cn;
+  return cn ? `${en} / ${cn}` : en;
+}
+const UOM_CN = {
+  Bag:'袋', Bar:'根', Barrel:'桶', Bottle:'瓶', Box:'箱',
+  Bundle:'捆', Carton:'纸箱', Coil:'卷', Cylinder:'气瓶',
+  Item:'件', Kg:'千克', Litre:'升', M:'米', Pack:'包',
+  Pair:'副', Pcs:'个', pcs:'个', Rod:'棒', Roll:'卷',
+  Set:'套', Sheet:'张', Ton:'吨', Tube:'支', Unit:'台',
+};
+function uomLabel(uom) {
+  if (!uom) return '';
+  const cn = UOM_CN[uom];
+  return cn ? `${uom} / ${cn}` : uom;
+}
+let prSortField = null, prSortDir = 1;
+let poSortField = null, poSortDir = 1;
+let allPOs = [];
 let currentPoItem = null;
 let currentRole = 'requester';
 let prFilter = 'all';
@@ -1140,7 +1202,7 @@ function navTo(page) {
     loadMyItemRequests();
     const deptSel = document.getElementById('prDepartment');
     if (deptSel && deptSel.options.length <= 1) {
-      allDepartments.forEach(d => { const o = document.createElement('option'); o.value = d; o.textContent = d; deptSel.appendChild(o); });
+      allDepartments.forEach(d => { const o = document.createElement('option'); o.value = d; o.textContent = deptLabel(d); deptSel.appendChild(o); });
     }
     setPRMode('template');
     if (!tplState.templates.length) loadTemplates();
@@ -1189,11 +1251,31 @@ function prFulfillmentPill(pr) {
   return `<span class="pill pill-unfulfilled"><span class="pill-dot"></span>Unfulfilled</span>`;
 }
 
+function togglePRSort(field) {
+  if (prSortField === field) prSortDir *= -1;
+  else { prSortField = field; prSortDir = 1; }
+  const labels = { pr_number: 'PR #', date_requested: 'Date', status: 'Status' };
+  document.querySelectorAll('.sort-btn[id^="prSort-"]').forEach(b => {
+    const f = b.id.replace('prSort-', '');
+    const arrow = prSortField === f ? (prSortDir === 1 ? ' ↑' : ' ↓') : ' ↕';
+    b.textContent = (labels[f] || f) + arrow;
+    b.classList.toggle('active', prSortField === f);
+  });
+  renderPRTable();
+}
+
 function renderPRTable() {
   const base = prFilter === 'all' ? allPRs : allPRs.filter(p => p.status === prFilter);
-  // Sort: unfulfilled → partial → fulfilled → N/A, then newest first within group
+  // Sort: unfulfilled → partial → fulfilled → N/A, then newest first within group (default)
+  // Override with user-selected sort field when set
   const fulfillOrder = { unfulfilled: 0, partial: 1, fulfilled: 2 };
   const filtered = base.slice().sort((a, b) => {
+    if (prSortField) {
+      const va = String(a[prSortField] || ''), vb = String(b[prSortField] || '');
+      if (va < vb) return -1 * prSortDir;
+      if (va > vb) return  1 * prSortDir;
+      return 0;
+    }
     const fa = a.fulfillment_status != null ? (fulfillOrder[a.fulfillment_status] ?? 3) : 3;
     const fb = b.fulfillment_status != null ? (fulfillOrder[b.fulfillment_status] ?? 3) : 3;
     if (fa !== fb) return fa - fb;
@@ -1357,7 +1439,7 @@ function renderRequesterItemsTable(pr) {
       <td style="font-size:13px">${it.qty_requested ?? it.qty}</td>
       <td style="font-size:13px">${it.qty_approved ?? '—'}</td>
       ${fulfilledCell}
-      <td class="text-dim">${it.uom}</td>
+      <td class="text-dim">${uomLabel(it.uom)}</td>
       <td>${statusPill(it.status||'pending')}</td>
       <td id="req-item-action-${it.pr_item_id}">${action}</td>
       <td>${currentRole === 'admin' ? `<button class="btn-delete btn-sm" onclick="adminDeletePRItem(${it.pr_item_id},${pr.pr_id})">Delete</button>` : ''}</td>
@@ -1390,7 +1472,7 @@ async function loadMyPRs() {
     <tr class="tbl-row" style="cursor:pointer" onclick="toggleMyPRItems(${pr.pr_id}, this)">
       <td class="mono">${pr.pr_number}</td>
       <td class="text-dim" style="font-family:var(--mono);font-size:12px">${pr.date_requested}</td>
-      <td class="text-dim">${pr.department}</td>
+      <td class="text-dim">${deptLabel(pr.department)}</td>
       <td>${statusPill(pr.status)}</td>
       <td style="text-align:right">
         <button class="btn-outline" style="font-size:11px;padding:5px 10px" onclick="event.stopPropagation();toggleMyPRItems(${pr.pr_id})">Details ↓</button>
@@ -1418,7 +1500,7 @@ async function toggleMyPRItems(pr_id) {
         ${it.name_cn ? `<div style="font-size:11px;color:var(--faint)">${it.name_cn}</div>` : ''}
       </td>
       <td style="font-size:13px">${it.qty_requested ?? it.qty}</td>
-      <td class="text-dim">${it.uom}</td>
+      <td class="text-dim">${uomLabel(it.uom)}</td>
       <td>${statusPill(it.status || 'pending')}</td>
     </tr>`).join('');
   const stageNames = ['Submitted','MD Review','PO Created','GL Export'];
@@ -1583,9 +1665,9 @@ function renderCreatePOItems() {
       </td>
       <td class="mono" style="font-size:12px">${it.pr_number}</td>
       <td class="text-dim">${it.requested_by}</td>
-      <td class="text-dim">${it.department}</td>
+      <td class="text-dim">${deptLabel(it.department)}</td>
       <td style="font-size:13px">${remaining} <span style="font-size:10px;color:var(--faint)">(approved: ${qtyApproved})</span></td>
-      <td class="text-dim">${it.uom}</td>
+      <td class="text-dim">${uomLabel(it.uom)}</td>
       <td>
         <input type="number" id="cpo-qty-${it.pr_item_id}" min="0.01" step="any" value="${remaining}"
           class="field-input field-input-sm" style="width:90px" disabled
@@ -1641,9 +1723,9 @@ function openCPOBulkModal() {
         ${it.name_cn ? `<div style="font-size:11px;color:var(--faint)">${escHtml(it.name_cn)}</div>` : ''}
       </td>
       <td class="mono" style="font-size:12px">${escHtml(it.pr_number)}</td>
-      <td class="text-dim">${escHtml(it.department)}</td>
+      <td class="text-dim">${escHtml(deptLabel(it.department))}</td>
       <td style="font-size:13px">${qty}</td>
-      <td class="text-dim">${escHtml(it.uom)}</td>
+      <td class="text-dim">${escHtml(uomLabel(it.uom))}</td>
       <td>
         <input type="number" id="cbulk-price-${it.pr_item_id}" min="0" step="any" placeholder="0.00"
           class="field-input field-input-sm" style="width:140px"
@@ -1728,30 +1810,30 @@ async function submitCPOBulk() {
 }
 
 // ── PO List ────────────────────────────────────────────────────────────────────
-async function loadPOList() {
-  if (!_poSearchInited) {
-    _poSearchInited = true;
-    const urlTerm = new URL(location.href).searchParams.get('search') || '';
-    if (urlTerm) {
-      poSearchTerm = urlTerm;
-      const inp = document.getElementById('poSearch');
-      if (inp) inp.value = urlTerm;
-      document.getElementById('poSearchClear').style.display = '';
-    }
-  }
+function togglePOSort(field) {
+  if (poSortField === field) poSortDir *= -1;
+  else { poSortField = field; poSortDir = 1; }
+  const labels = { po_number: 'PO #', date_created: 'Date', vendor_name: 'Vendor', status: 'Status' };
+  document.querySelectorAll('.sort-btn[id^="poSort-"]').forEach(b => {
+    const f = b.id.replace('poSort-', '');
+    const arrow = poSortField === f ? (poSortDir === 1 ? ' ↑' : ' ↓') : ' ↕';
+    b.textContent = (labels[f] || f) + arrow;
+    b.classList.toggle('active', poSortField === f);
+  });
+  renderPOTable();
+}
+
+function renderPOTable() {
   const body = document.getElementById('poTableBody');
-  const apiUrl = poSearchTerm ? `/api/po?search=${encodeURIComponent(poSearchTerm)}` : '/api/po';
-  const { ok, data: pos, error } = await apiFetch(apiUrl);
-  if (!ok) { body.innerHTML = `<tr><td colspan="7"><div class="msg msg-error">${error}</div></td></tr>`; return; }
-  if (!pos.length) {
-    if (poSearchTerm) {
-      body.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:40px;font-size:13px">No POs match "<strong>${escHtml(poSearchTerm)}</strong>"</td></tr>`;
-    } else {
-      body.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:40px">No purchase orders yet.</td></tr>`;
-    }
-    return;
-  }
-  body.innerHTML = pos.map(po => `
+  if (!allPOs.length) return;
+  const sorted = allPOs.slice().sort((a, b) => {
+    if (!poSortField) return 0;
+    const va = String(a[poSortField] || ''), vb = String(b[poSortField] || '');
+    if (va < vb) return -1 * poSortDir;
+    if (va > vb) return  1 * poSortDir;
+    return 0;
+  });
+  body.innerHTML = sorted.map(po => `
     <tr class="tbl-row" style="cursor:pointer" onclick="togglePODetail(${po.po_id}, this)">
       <td class="mono">${po.po_number}</td>
       <td style="font-family:var(--mono);font-size:12px;color:var(--dim)">${po.pr_numbers || '—'}</td>
@@ -1773,6 +1855,34 @@ async function loadPOList() {
     </tr>`).join('');
 }
 
+async function loadPOList() {
+  if (!_poSearchInited) {
+    _poSearchInited = true;
+    const urlTerm = new URL(location.href).searchParams.get('search') || '';
+    if (urlTerm) {
+      poSearchTerm = urlTerm;
+      const inp = document.getElementById('poSearch');
+      if (inp) inp.value = urlTerm;
+      document.getElementById('poSearchClear').style.display = '';
+    }
+  }
+  const body = document.getElementById('poTableBody');
+  const apiUrl = poSearchTerm ? `/api/po?search=${encodeURIComponent(poSearchTerm)}` : '/api/po';
+  const { ok, data: pos, error } = await apiFetch(apiUrl);
+  if (!ok) { body.innerHTML = `<tr><td colspan="7"><div class="msg msg-error">${error}</div></td></tr>`; return; }
+  if (!pos.length) {
+    allPOs = [];
+    if (poSearchTerm) {
+      body.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:40px;font-size:13px">No POs match "<strong>${escHtml(poSearchTerm)}</strong>"</td></tr>`;
+    } else {
+      body.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:40px">No purchase orders yet.</td></tr>`;
+    }
+    return;
+  }
+  allPOs = pos;
+  renderPOTable();
+}
+
 async function togglePODetail(po_id) {
   const row    = document.getElementById(`po-detail-row-${po_id}`);
   const detail = document.getElementById(`po-detail-${po_id}`);
@@ -1789,7 +1899,7 @@ async function togglePODetail(po_id) {
         <div style="font-weight:500;font-size:13px">${it.name_en}</div>
         ${it.name_cn ? `<div style="font-size:11px;color:var(--faint)">${it.name_cn}</div>` : ''}
       </td>
-      <td style="font-size:13px">${it.qty} ${it.uom}</td>
+      <td style="font-size:13px">${it.qty} ${uomLabel(it.uom)}</td>
       <td style="font-family:var(--serif);font-size:14px">${fmtMoney(it.unit_price)}</td>
       <td style="font-family:var(--serif);font-size:14px;font-weight:600">${fmtMoney(it.total_price)}</td>
       <td class="mono" style="font-size:12px;color:var(--dim)">${it.pr_number || '—'}</td>
@@ -1830,7 +1940,7 @@ async function loadMDPOApprovals() {
           <div style="font-weight:500">${escHtml(it.name_en || '')}</div>
           ${it.name_cn ? `<div style="font-size:11px;color:var(--faint)">${escHtml(it.name_cn)}</div>` : ''}
         </td>
-        <td style="font-size:13px;padding:8px 10px;white-space:nowrap">${it.qty} ${escHtml(it.uom || '')}</td>
+        <td style="font-size:13px;padding:8px 10px;white-space:nowrap">${it.qty} ${escHtml(uomLabel(it.uom || ''))}</td>
         <td style="font-family:var(--mono);font-size:13px;padding:8px 10px;white-space:nowrap">${fmtMoney(it.unit_price)}</td>
         <td style="font-family:var(--mono);font-size:13px;padding:8px 10px;text-align:right;white-space:nowrap;font-weight:600">${fmtMoney(it.total_price)}</td>
         <td style="font-size:11px;color:var(--faint);padding:8px 10px;font-family:var(--mono)">${escHtml(it.pr_number || '—')}</td>
@@ -1925,7 +2035,7 @@ function openPoModal(prItem, pr_id) {
   currentPoItem = { ...prItem, pr_id };
   document.getElementById('poModalMsg').innerHTML = '';
   document.getElementById('poItemName').textContent = prItem.name_en + (prItem.name_cn ? ` — ${prItem.name_cn}` : '');
-  document.getElementById('poQtyApproved').textContent = `${prItem.qty_approved ?? prItem.qty} ${prItem.uom}`;
+  document.getElementById('poQtyApproved').textContent = `${prItem.qty_approved ?? prItem.qty} ${uomLabel(prItem.uom)}`;
   document.getElementById('poVendor').value    = '';
   document.getElementById('poUnitPrice').value = prItem.est_unit_price || '';
   document.getElementById('poQtyOrdered').value = prItem.qty_approved ?? prItem.qty;
@@ -1993,7 +2103,7 @@ async function loadMDView() {
         <div style="font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:600">${pr.pr_number}</div>
         <div class="vdivider"></div>
         <div style="font-size:13.5px;font-weight:500;color:var(--text)">${pr.requested_by}</div>
-        <div class="text-dim">${pr.department} · <span style="font-family:var(--mono);font-size:11.5px">${pr.date_requested}</span></div>
+        <div class="text-dim">${deptLabel(pr.department)} · <span style="font-family:var(--mono);font-size:11.5px">${pr.date_requested}</span></div>
         ${pr.estimated_total ? `<div style="font-family:var(--serif);font-size:18px;font-weight:400;color:var(--text);margin-left:6px">Est. Total: ${fmtMoney(pr.estimated_total)}</div>` : ''}
         <div style="flex:1"></div>
         <span id="md-summary-${pr.pr_id}" class="pill pill-draft" style="font-size:10px;padding:3px 10px">
@@ -2022,7 +2132,7 @@ async function loadMDView() {
               <td style="font-size:13px">${it.qty_requested ?? it.qty}</td>
               <td><input type="number" id="md-qty-${it.pr_item_id}" value="${it.qty_approved ?? it.qty_requested ?? it.qty}" min="0" step="any"
                 class="field-input field-input-sm" style="width:80px" ${(it.status&&it.status.toLowerCase()!=='pending')?'disabled':''}/></td>
-              <td class="text-dim">${it.uom}</td>
+              <td class="text-dim">${uomLabel(it.uom)}</td>
               <td id="md-status-${it.pr_item_id}">${statusPill((it.status||'pending').toLowerCase())}</td>
               <td id="md-action-${it.pr_item_id}">
                 ${(!it.status || it.status.toLowerCase() === 'pending') ? `
@@ -2048,6 +2158,10 @@ async function doItemApprove(pr_id, pr_item_id, action) {
   if (msgEl) msgEl.innerHTML = '';
 
   const qty_approved = parseFloat(document.getElementById(`md-qty-${pr_item_id}`)?.value) || 0;
+  if (action === 'approved' && (isNaN(qty_approved) || qty_approved <= 0)) {
+    alert('Jumlah yang disetujui harus lebih dari 0\nApproved quantity must be greater than 0');
+    return;
+  }
   const { ok, data, error } = await apiFetch(`/api/pr/${pr_id}/items/${pr_item_id}/approve`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ approved_by, action, qty_approved })
@@ -2103,6 +2217,7 @@ async function doBulkAction(action) {
   const items = Array.from(bulkSelected).map(s => JSON.parse(s));
   await Promise.all(items.map(({ pr_item_id, pr_id }) => {
     const qty_approved = parseFloat(document.getElementById(`md-qty-${pr_item_id}`)?.value);
+    if (action === 'approved' && (isNaN(qty_approved) || qty_approved <= 0)) return Promise.resolve();
     return apiFetch(`/api/pr/${pr_id}/items/${pr_item_id}/approve`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ approved_by, action, qty_approved })
@@ -2137,7 +2252,7 @@ function searchItems(q) {
     dd.innerHTML = results.map(it => `
       <div class="search-item" onclick="addLineItem(${JSON.stringify(it).replace(/"/g,'&quot;')})">
         <div class="si-name">${it.name_en}${it.name_cn ? ' — <span style="color:var(--faint);font-weight:400">'+it.name_cn+'</span>' : ''}</div>
-        <div class="si-sub">${it.category||''} · ${it.uom||''} · <span style="font-family:var(--mono)">${it.item_id}</span></div>
+        <div class="si-sub">${it.category||''} · ${uomLabel(it.uom||'')} · <span style="font-family:var(--mono)">${it.item_id}</span></div>
       </div>`).join('');
     dd.style.display = 'block';
   }, 200);
@@ -2299,7 +2414,7 @@ function renderChecklist(id) {
           <input type="number" min="0.01" step="any" value="${curQty}"
             class="field-input field-input-sm" style="width:68px" ${noMatch ? 'disabled' : ''}
             onchange="tplSetQty('${id}','${it.template_item_id}',+this.value)"/>
-          <span style="font-size:12px;color:var(--dim)">${it.uom}</span>
+          <span style="font-size:12px;color:var(--dim)">${uomLabel(it.uom)}</span>
         </div>`;
     }
     html += `</div>`;
@@ -2367,7 +2482,7 @@ function tplReview() {
           ${it.name_cn ? `<div style="font-size:11px;color:var(--faint)">${it.name_cn}</div>` : ''}
           ${it.spec    ? `<div style="font-size:11px;color:var(--dim)">${it.spec}</div>` : ''}</td>
       <td style="text-align:center">${it.qty}</td>
-      <td style="color:var(--dim)">${it.uom}</td>
+      <td style="color:var(--dim)">${uomLabel(it.uom)}</td>
     </tr>`;
   }
   html += '</tbody></table>';
@@ -2380,7 +2495,7 @@ function tplReview() {
   const topDept = Object.entries(deptCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
   const deptSel = document.getElementById('tplDepartment');
   if (deptSel && deptSel.options.length <= 1) {
-    allDepartments.forEach(d => { const o = document.createElement('option'); o.value = d; o.textContent = d; deptSel.appendChild(o); });
+    allDepartments.forEach(d => { const o = document.createElement('option'); o.value = d; o.textContent = deptLabel(d); deptSel.appendChild(o); });
   }
   if (deptSel && topDept) [...deptSel.options].forEach(o => { o.selected = (o.value === topDept); });
 
@@ -2489,7 +2604,7 @@ function renderItemMasterTable(items) {
       <td class="text-dim">${it.name_cn||''}</td>
       <td class="text-dim" style="font-family:var(--mono);font-size:11px">${it.spec||''}</td>
       <td class="text-dim">${it.category_name||it.category||''}</td>
-      <td class="text-dim">${it.uom||''}</td>
+      <td class="text-dim">${uomLabel(it.uom||'')}</td>
       <td style="text-align:right;white-space:nowrap;display:flex;gap:6px;justify-content:flex-end">
         <button class="btn-outline btn-sm" onclick="openEditItemModal('${it.item_id}')">Edit</button>
         <button class="btn-delete btn-sm" onclick="adminDeleteItem('${it.item_id}')">Delete</button>
