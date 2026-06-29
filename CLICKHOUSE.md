@@ -9,7 +9,7 @@
 | Native port | `9000` |
 | Database | `procurement` |
 | User | `procurement_user` |
-| Password | `Merge2026!CH` |
+| Password | `${CLICKHOUSE_PASSWORD}` |
 
 ---
 
@@ -29,7 +29,7 @@ docker-compose.yml
 
 ```bash
 # 1. Set password in .env (must match CLICKHOUSE_PASSWORD in docker-compose.yml)
-echo "CLICKHOUSE_PASSWORD=Merge2026!CH" >> .env
+echo "CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}" >> .env
 
 # 2. Start both services
 docker compose up -d
@@ -41,7 +41,7 @@ python3 migrate_clickhouse.py
 
 # 4. Verify
 curl -s "http://localhost:8123/?database=procurement&query=SELECT+name,total_rows+FROM+system.tables+WHERE+database='procurement'+ORDER+BY+name" \
-  -u procurement_user:Merge2026!CH
+  -u procurement_user:${CLICKHOUSE_PASSWORD}
 ```
 
 ---
@@ -51,7 +51,7 @@ curl -s "http://localhost:8123/?database=procurement&query=SELECT+name,total_row
 ### Push item master only (after DB updates)
 
 ```bash
-python3 migrate_clickhouse.py --items-only --host 76.13.19.246 --password 'Merge2026!CH'
+python3 migrate_clickhouse.py --items-only --host 76.13.19.246 --password '${CLICKHOUSE_PASSWORD}'
 docker restart procurement_app
 ```
 
@@ -59,14 +59,14 @@ docker restart procurement_app
 
 ```bash
 curl -s "http://76.13.19.246:8123/?database=procurement&query=SELECT+COUNT(*)+FROM+items+FINAL" \
-  -u procurement_user:Merge2026!CH
+  -u procurement_user:${CLICKHOUSE_PASSWORD}
 ```
 
 ### Check table row counts
 
 ```bash
 curl -s "http://76.13.19.246:8123/?database=procurement&query=SELECT+name,total_rows+FROM+system.tables+WHERE+database='procurement'+ORDER+BY+name" \
-  -u procurement_user:Merge2026!CH
+  -u procurement_user:${CLICKHOUSE_PASSWORD}
 ```
 
 ---

@@ -2130,7 +2130,7 @@ async function loadMDView() {
                 ${it.name_cn?`<div style="font-size:11px;color:var(--faint)">${it.name_cn}</div>`:''}
               </td>
               <td style="font-size:13px">${it.qty_requested ?? it.qty}</td>
-              <td><input type="number" id="md-qty-${it.pr_item_id}" value="${it.qty_approved ?? it.qty_requested ?? it.qty}" min="0" step="any"
+              <td><input type="number" id="md-qty-${it.pr_item_id}" value="${it.qty_approved || it.qty_requested || it.qty}" min="0" step="any"
                 class="field-input field-input-sm" style="width:80px" ${(it.status&&it.status.toLowerCase()!=='pending')?'disabled':''}/></td>
               <td class="text-dim">${uomLabel(it.uom)}</td>
               <td id="md-status-${it.pr_item_id}">${statusPill((it.status||'pending').toLowerCase())}</td>
