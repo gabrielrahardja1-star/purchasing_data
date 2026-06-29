@@ -17,12 +17,14 @@ const { randomUUID } = require('crypto');
 
 const COMPANY_ID = 'PTMMI';
 
+if (!process.env.CLICKHOUSE_PASSWORD) throw new Error('CLICKHOUSE_PASSWORD env var is required');
+
 const config = {
-  host:     process.env.CLICKHOUSE_HOST     || 'localhost',
+  host:     process.env.CLICKHOUSE_HOST || 'localhost',
   port:     parseInt(process.env.CLICKHOUSE_PORT || '8123'),
-  db:       process.env.CLICKHOUSE_DB       || 'procurement',
-  user:     process.env.CLICKHOUSE_USER     || 'procurement_user',
-  password: process.env.CLICKHOUSE_PASSWORD || 'changeme',
+  db:       process.env.CLICKHOUSE_DB   || 'procurement',
+  user:     process.env.CLICKHOUSE_USER || 'procurement_user',
+  password: process.env.CLICKHOUSE_PASSWORD,
 };
 
 // ── HTTP helper ───────────────────────────────────────────────────────────────

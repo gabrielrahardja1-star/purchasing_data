@@ -65,7 +65,7 @@ const app = express();
 app.use(express.json());
 app.use(session({
   store: new SQLiteStore({ db: 'procurement.db', dir: './db' }),
-  secret: process.env.SESSION_SECRET || 'merge-mining-procurement-secret-dev',
+  secret: (() => { if (!process.env.SESSION_SECRET) throw new Error('SESSION_SECRET env var is required'); return process.env.SESSION_SECRET; })(),
   resave: false,
   saveUninitialized: false,
   cookie: { maxAge: 8 * 60 * 60 * 1000, sameSite: 'lax', httpOnly: true }
@@ -455,8 +455,9 @@ app.post('/api/pr/:id/approve', requireRole('md', 'admin'), async (req, res) => 
 
 app.post('/api/pr/:id/items/:itemId/approve', requireRole('md', 'admin'), async (req, res) => {
   try {
-    const { approved_by, action, qty_approved, notes } = req.body;
-    if (!approved_by || !action) return res.status(400).json({ error: 'approved_by and action required' });
+    const { action, qty_approved, notes } = req.body;
+    const approved_by = req.session.user.full_name || req.session.user.username;
+    if (!action) return res.status(400).json({ error: 'action required' });
     if (!['approved', 'rejected'].includes(action)) return res.status(400).json({ error: 'action must be approved or rejected' });
 
     const prs = await ch.query(
@@ -513,12 +514,7 @@ app.post('/api/pr/:id/items/:itemId/approve', requireRole('md', 'admin'), async 
       await ch.insert('purchase_requests', [{ ...pr, status: newStatus, version: ver + 1, updated_at: now }]);
     }
 
-    const updated = await ch.query(
-      `SELECT * FROM purchase_request_items FINAL WHERE legacy_pr_item_id = {itemId:Int64} LIMIT 1`,
-      { itemId: req.params.itemId }
-    );
-    const u = updated[0] || {};
-    res.json({ ...u, pr_item_id: u.legacy_pr_item_id, qty_approved: u.approved_qty, qty_requested: u.requested_qty });
+    res.json({ success: true, status: action, qty_approved: approvedQty });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -796,6 +792,8 @@ app.get('/api/po/:id/print', requireAuth, async (req, res) => {
       { poid: po.po_id }
     );
 
+    const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
     const DEPT_CN = {
       'Coal Extraction':'采煤队','Conveyor':'皮带队','Drainage':'抽放队',
       'Electromechanical':'机电队','Excavation':'掘机队','Extraction':'抽采队',
@@ -833,9 +831,9 @@ app.get('/api/po/:id/print', requireAuth, async (req, res) => {
       const uomDisplay = uomCN ? `${it.uom} / ${uomCN}` : it.uom;
       return `
       <tr>
-        <td>${it.item_id}</td>
-        <td>${it.name_en}${it.name_cn ? '<br><span class="cn">' + it.name_cn + '</span>' : ''}</td>
-        <td class="num">${parseFloat(it.ordered_qty).toLocaleString('id-ID')} ${uomDisplay}</td>
+        <td>${esc(it.item_id)}</td>
+        <td>${esc(it.name_en)}${it.name_cn ? '<br><span class="cn">' + esc(it.name_cn) + '</span>' : ''}</td>
+        <td class="num">${parseFloat(it.ordered_qty).toLocaleString('id-ID')} ${esc(uomDisplay)}</td>
         <td class="num">${fmt(it.unit_price)}</td>
         <td class="num">0</td>
         <td class="num">${fmt(it.total_price)}</td>
@@ -843,7 +841,7 @@ app.get('/api/po/:id/print', requireAuth, async (req, res) => {
     }).join('');
 
     const purposeHtml = purposeDept
-      ? `<div class="to-box" style="margin-top:10px"><div class="label">Purpose / 采购目的</div><div class="vendor" style="font-size:10.5pt">${purposeDept}${purposeCN ? ' / ' + purposeCN : ''}</div></div>`
+      ? `<div class="to-box" style="margin-top:10px"><div class="label">Purpose / 采购目的</div><div class="vendor" style="font-size:10.5pt">${esc(purposeDept)}${purposeCN ? ' / ' + esc(purposeCN) : ''}</div></div>`
       : '';
 
     const html = `<!DOCTYPE html>
@@ -893,13 +891,13 @@ app.get('/api/po/:id/print', requireAuth, async (req, res) => {
 <hr class="divider">
 <div class="two-col">
   <div>
-    <div class="to-box"><div class="label">To / 供应商</div><div class="vendor">${po.vendor_name}</div></div>
+    <div class="to-box"><div class="label">To / 供应商</div><div class="vendor">${esc(po.vendor_name)}</div></div>
     ${purposeHtml}
   </div>
   <div class="po-box"><div class="title">Purchase Order</div>
   <div class="po-meta">
-    <span class="key">Number</span><span class="val">: ${po.po_number}</span>
-    <span class="key">Date</span><span class="val">: ${po.po_date}</span>
+    <span class="key">Number</span><span class="val">: ${esc(po.po_number)}</span>
+    <span class="key">Date</span><span class="val">: ${esc(po.po_date)}</span>
   </div></div>
 </div>
 <table class="items"><thead><tr>
@@ -910,7 +908,7 @@ app.get('/api/po/:id/print', requireAuth, async (req, res) => {
   <th class="num" style="width:140px">Total</th>
 </tr></thead><tbody>${itemRows}</tbody></table>
 <div class="bottom">
-  <div class="notes-box"><div class="label">Notes / 备注</div><div>${po.notes || '—'}</div></div>
+  <div class="notes-box"><div class="label">Notes / 备注</div><div>${esc(po.notes) || '—'}</div></div>
   <div class="totals">
     <div class="total-row"><span>Sub Total</span><span>${fmt(subtotal)}</span></div>
     <div class="total-row"><span>Diskon</span><span>0</span></div>
@@ -1209,7 +1207,7 @@ app.delete('/api/item-requests/:id', requireAuth, async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Request not found' });
     const row = rows[0];
-    if (row.requested_by_user_id !== String(req.session.userId) && req.session.role !== 'admin') {
+    if (row.requested_by_user_id !== String(req.session.user.id) && req.session.user.role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden' });
     }
     const now = ch.nowTs(); const ver = Number(ch.version());
@@ -1281,6 +1279,26 @@ async function start() {
       updated_at       DateTime64(3, 'Asia/Jakarta') DEFAULT now64(3)
     ) ENGINE = ReplacingMergeTree(version)
     ORDER BY (company_id, template_item_id)
+  `);
+  await ch.execute(`
+    CREATE TABLE IF NOT EXISTS gl_exports (
+      gl_export_id          String,
+      company_id            String,
+      legacy_log_id         Nullable(Int64),
+      source_document_type  String DEFAULT '',
+      source_document_id    String DEFAULT '',
+      export_number         String DEFAULT '',
+      export_date           String DEFAULT '',
+      filename              String DEFAULT '',
+      status                String DEFAULT 'generated',
+      exported_by_user_id   String DEFAULT '',
+      notes                 String DEFAULT '',
+      version               UInt64 DEFAULT toUInt64(toUnixTimestamp64Milli(now64(3))),
+      is_deleted            UInt8  DEFAULT 0,
+      created_at            DateTime64(3, 'Asia/Jakarta') DEFAULT now64(3),
+      updated_at            DateTime64(3, 'Asia/Jakarta') DEFAULT now64(3)
+    ) ENGINE = ReplacingMergeTree(version)
+    ORDER BY (company_id, gl_export_id)
   `);
   await rebuildFuse();
   console.log(`Fuse index built (${fuse ? 'ok' : 'empty'})`);

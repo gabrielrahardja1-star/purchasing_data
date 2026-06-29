@@ -10,7 +10,7 @@ COPY package*.json ./
 RUN npm install --omit=dev
 
 # Copy application source
-COPY server.js ./
+COPY server.js clickhouse.js ./
 COPY public/ ./public/
 COPY db/schema.sql ./db/schema.sql
 
