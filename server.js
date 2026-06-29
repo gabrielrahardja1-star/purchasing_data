@@ -396,9 +396,9 @@ app.get('/api/pr/:id', requireAuth, async (req, res) => {
       return {
         ...item,
         pr_item_id:    item.legacy_pr_item_id,
-        qty:           item.requested_qty,
-        qty_requested: item.requested_qty,
-        qty_approved:  item.approved_qty,
+        qty:           parseFloat(item.requested_qty) || 0,
+        qty_requested: parseFloat(item.requested_qty) || 0,
+        qty_approved:  parseFloat(item.approved_qty)  || 0,
         est_unit_price: item.estimated_unit_price,
         fulfillment_status,
       };
